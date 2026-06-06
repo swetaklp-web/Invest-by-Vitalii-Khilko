@@ -1,0 +1,17 @@
+{
+  "date": "2026-06-06",
+  "signals": [
+    {
+      "source": "Manual input",
+      "url": "https://finance.yahoo.com/",
+      "summary": "Инвесторы продолжают оценивать спрос на AI-инфраструктуру: ускорители, память, дата-центры, охлаждение и электроэнергию.",
+      "tickers": ["NVDA", "AMD", "TSM", "MU", "VRT"],
+      "impact": "[Watch]",
+      "strength": "medium",
+      "horizon": "medium",
+      "catalyst_type": "narrative",
+      "date": "2026-06-06"
+    }
+  ]
+}
+

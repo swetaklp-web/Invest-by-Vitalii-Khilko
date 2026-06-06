@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 1280px; height: 720px; overflow: hidden;
+      font-family: Inter, Arial, sans-serif; color: #10233f;
+      background: linear-gradient(135deg, #f8fbff 0%, #edf5ff 100%);
+    }
+    .page { padding: 62px 72px; height: 100%; position: relative; }
+    .brand { color: #2563eb; font-size: 22px; font-weight: 800; letter-spacing: .08em; }
+    .date { position: absolute; right: 72px; top: 62px; color: #64748b; font-size: 20px; }
+    h1 { width: 930px; margin: 82px 0 18px; font-size: 62px; line-height: 1.06; letter-spacing: -.04em; }
+    .subtitle { width: 900px; color: #53657e; font-size: 27px; line-height: 1.35; }
+    .tickers { display: flex; gap: 14px; margin-top: 58px; flex-wrap: wrap; }
+    .ticker {
+      background: rgba(255,255,255,.9); border: 1px solid #dbe7f5; border-radius: 14px;
+      padding: 14px 20px; font-size: 22px; font-weight: 800; box-shadow: 0 10px 30px rgba(39,72,125,.08);
+    }
+    .accent { position: absolute; right: -70px; bottom: -110px; width: 420px; height: 420px;
+      border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.20), rgba(37,99,235,0) 68%); }
+    .line { position: absolute; left: 72px; bottom: 54px; width: 1136px; height: 2px; background: #dbe7f5; }
+    .footer { position: absolute; left: 72px; bottom: 22px; color: #74849b; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand">INVEST BY VITALII KHILKO</div>
+    <div class="date">{{ date }}</div>
+    <h1>{{ title }}</h1>
+    <div class="subtitle">{{ subtitle }}</div>
+    <div class="tickers">{% for ticker in tickers %}<div class="ticker">{{ ticker }}</div>{% endfor %}</div>
+    <div class="accent"></div>
+    <div class="line"></div>
+    <div class="footer">US MARKET INTELLIGENCE • TELEGRAM</div>
+  </div>
+</body>
+</html>
+

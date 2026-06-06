@@ -1,0 +1,77 @@
+from pathlib import Path
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler
+
+from app.config import settings
+from app.storage.drafts import save_draft
+from app.storage.logs import write_log
+from app.telegram.callbacks import handle_callback
+
+
+def review_keyboard(draft_id: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Опубликовать", callback_data=f"publish:{draft_id}"),
+                InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{draft_id}"),
+            ],
+            [
+                InlineKeyboardButton("🔁 Переделать короче", callback_data=f"shorter:{draft_id}"),
+                InlineKeyboardButton("🧠 Сделать глубже", callback_data=f"deeper:{draft_id}"),
+            ],
+        ]
+    )
+
+
+def service_block(draft: dict) -> str:
+    quality = draft["quality"]
+    issues = "\n".join(f"• {item}" for item in quality["issues"]) or "• нет"
+    risks = "\n".join(f"• {item}" for item in quality["risk_flags"]) or "• нет"
+    return (
+        f"\n\n———\nСлужебный блок\n"
+        f"Draft ID: {draft['id']}\nQuality passed: {quality['passed']}\n"
+        f"Проблемы:\n{issues}\nRisk flags:\n{risks}"
+    )
+
+
+async def send_review_draft(bot, draft: dict) -> None:
+    with Path(draft["image_path"]).open("rb") as image:
+        await bot.send_photo(chat_id=settings.telegram_review_chat_id, photo=image)
+    await bot.send_message(
+        chat_id=settings.telegram_review_chat_id,
+        text=draft["post"]["telegram_text"],
+        disable_web_page_preview=True,
+    )
+    message = await bot.send_message(
+        chat_id=settings.telegram_review_chat_id,
+        text=service_block(draft).lstrip(),
+        reply_markup=review_keyboard(draft["id"]),
+    )
+    draft["telegram_message_id"] = message.message_id
+    save_draft(draft)
+    write_log(
+        {
+            "date": draft["post"].get("date"),
+            "post_type": draft["post"].get("post_type"),
+            "sources": draft["post"].get("sources", []),
+            "tickers": draft["post"].get("tickers", []),
+            "status": "pending_review",
+            "telegram_message_id": message.message_id,
+            "error": None,
+        }
+    )
+
+
+async def log_bot_error(update: object, context) -> None:
+    write_log({"status": "bot_error", "error": str(context.error)})
+
+
+def run_bot() -> None:
+    settings.require(
+        "telegram_bot_token", "openai_api_key", "telegram_review_chat_id", "telegram_channel_id"
+    )
+    application = Application.builder().token(settings.telegram_bot_token).build()
+    application.add_handler(CallbackQueryHandler(handle_callback))
+    application.add_error_handler(log_bot_error)
+    application.run_polling(allowed_updates=Update.ALL_TYPES)

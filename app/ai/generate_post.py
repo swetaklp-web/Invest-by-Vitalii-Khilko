@@ -1,0 +1,76 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Literal
+from zoneinfo import ZoneInfo
+
+from openai import OpenAI
+
+from app.config import ROOT_DIR, settings
+
+
+PROMPTS_DIR = ROOT_DIR / "app" / "ai" / "prompts"
+
+
+def _prompt(name: str) -> str:
+    return (PROMPTS_DIR / name).read_text(encoding="utf-8")
+
+
+def generate_post(
+    inputs: dict[str, Any],
+    post_type: Literal["morning_brief", "evening_theme"],
+    revision: Literal["shorter", "deeper"] | None = None,
+    previous_post: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    settings.require("openai_api_key")
+    client = OpenAI(api_key=settings.openai_api_key)
+    revision_instruction = {
+        None: "",
+        "shorter": "Переделай предыдущую версию короче, сохранив главную аналитику.",
+        "deeper": "Переделай предыдущую версию глубже: усили цепочку влияния и риски.",
+    }[revision]
+    schema = {
+        "post_type": post_type,
+        "date": "YYYY-MM-DD",
+        "title": "...",
+        "tickers": ["NVDA"],
+        "market_direction": "[Bullish] | [Bearish] | [Watch] | [Volatile]",
+        "signal_strength": "high | medium | low",
+        "horizon": "short | medium | long",
+        "catalyst_type": "event | fundamental | flows | narrative | macro | technical | rumor",
+        "sources": [{"name": "...", "url": "...", "summary": "..."}],
+        "telegram_text": "...",
+        "image_title": "...",
+        "image_subtitle": "...",
+        "image_tickers": ["$NVDA"],
+        "risk_flags": [],
+    }
+    user_payload = {
+        "task": f"Создай пост типа {post_type}. {revision_instruction}",
+        "current_date": datetime.now(ZoneInfo("Europe/Moscow")).date().isoformat(),
+        "required_json_shape": schema,
+        "input_signals": inputs,
+        "previous_post": previous_post,
+    }
+    response = client.chat.completions.create(
+        model=settings.openai_model,
+        response_format={"type": "json_object"},
+        temperature=0.4,
+        messages=[
+            {
+                "role": "system",
+                "content": "\n\n".join(
+                    [
+                        _prompt("system_invest_by_vitalii.md"),
+                        _prompt("telegram_style.md"),
+                        _prompt("compliance_rules.md"),
+                        "Верни только валидный JSON. telegram_text не длиннее 3500 символов.",
+                    ]
+                ),
+            },
+            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+        ],
+    )
+    return json.loads(response.choices[0].message.content or "{}")
