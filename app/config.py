@@ -30,7 +30,7 @@ OPTIONAL_ENV_VARS = (
 
 
 def _env(name: str, default: str = ""):
-    return field(default_factory=lambda: os.getenv(name, default))
+    return field(default_factory=lambda: os.getenv(name, default).strip())
 
 
 @dataclass(frozen=True)

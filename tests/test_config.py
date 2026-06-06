@@ -10,6 +10,12 @@ def test_missing_optional_keys_do_not_raise(monkeypatch) -> None:
     assert settings.missing_optional_env_vars() == list(OPTIONAL_ENV_VARS)
 
 
+def test_environment_values_are_trimmed(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "  test-key\n")
+
+    assert Settings().openai_api_key == "test-key"
+
+
 def test_required_keys_are_checked_separately(monkeypatch) -> None:
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     settings = Settings()
