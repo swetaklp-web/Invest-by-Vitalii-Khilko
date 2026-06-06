@@ -10,8 +10,8 @@ def test_missing_optional_keys_do_not_raise(monkeypatch) -> None:
     assert settings.missing_optional_env_vars() == list(OPTIONAL_ENV_VARS)
 
 
-def test_environment_values_are_trimmed(monkeypatch) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "  test-key\n")
+def test_environment_credentials_remove_formatting_whitespace(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "  test-\n key\t")
 
     assert Settings().openai_api_key == "test-key"
 

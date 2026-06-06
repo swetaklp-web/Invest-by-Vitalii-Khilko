@@ -33,23 +33,27 @@ def _env(name: str, default: str = ""):
     return field(default_factory=lambda: os.getenv(name, default).strip())
 
 
+def _credential(name: str):
+    return field(default_factory=lambda: "".join(os.getenv(name, "").split()))
+
+
 @dataclass(frozen=True)
 class Settings:
-    openai_api_key: str = _env("OPENAI_API_KEY")
-    telegram_bot_token: str = _env("TELEGRAM_BOT_TOKEN")
+    openai_api_key: str = _credential("OPENAI_API_KEY")
+    telegram_bot_token: str = _credential("TELEGRAM_BOT_TOKEN")
     telegram_review_chat_id: str = _env("TELEGRAM_REVIEW_CHAT_ID")
     telegram_channel_id: str = _env("TELEGRAM_CHANNEL_ID")
-    telegram_api_id: str = _env("TELEGRAM_API_ID")
-    telegram_api_hash: str = _env("TELEGRAM_API_HASH")
-    telegram_session_string: str = _env("TELEGRAM_SESSION_STRING")
-    x_bearer_token: str = _env("X_BEARER_TOKEN")
-    x_api_key: str = _env("X_API_KEY")
-    x_api_secret: str = _env("X_API_SECRET")
-    x_access_token: str = _env("X_ACCESS_TOKEN")
-    x_access_token_secret: str = _env("X_ACCESS_TOKEN_SECRET")
-    barchart_api_key: str = _env("BARCHART_API_KEY")
-    oninvest_api_key: str = _env("ONINVEST_API_KEY")
-    yahoo_finance_api_key: str = _env("YAHOO_FINANCE_API_KEY")
+    telegram_api_id: str = _credential("TELEGRAM_API_ID")
+    telegram_api_hash: str = _credential("TELEGRAM_API_HASH")
+    telegram_session_string: str = _credential("TELEGRAM_SESSION_STRING")
+    x_bearer_token: str = _credential("X_BEARER_TOKEN")
+    x_api_key: str = _credential("X_API_KEY")
+    x_api_secret: str = _credential("X_API_SECRET")
+    x_access_token: str = _credential("X_ACCESS_TOKEN")
+    x_access_token_secret: str = _credential("X_ACCESS_TOKEN_SECRET")
+    barchart_api_key: str = _credential("BARCHART_API_KEY")
+    oninvest_api_key: str = _credential("ONINVEST_API_KEY")
+    yahoo_finance_api_key: str = _credential("YAHOO_FINANCE_API_KEY")
     openai_model: str = _env("OPENAI_MODEL", "gpt-4.1-mini")
 
     def require(self, *names: str) -> None:
