@@ -42,29 +42,48 @@ TELEGRAM_CHANNEL_ID=@Financebks
 TELEGRAM_API_ID=
 TELEGRAM_API_HASH=
 TELEGRAM_SESSION_STRING=
+X_BEARER_TOKEN=
 X_API_KEY=
+X_API_SECRET=
+X_ACCESS_TOKEN=
+X_ACCESS_TOKEN_SECRET=
 BARCHART_API_KEY=
+ONINVEST_API_KEY=
+YAHOO_FINANCE_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-В MVP используются только `OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`,
-`TELEGRAM_REVIEW_CHAT_ID` и `TELEGRAM_CHANNEL_ID`. Остальные переменные
-зарезервированы для будущих интеграций.
+Обязательные переменные MVP: `OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`,
+`TELEGRAM_REVIEW_CHAT_ID`, `TELEGRAM_CHANNEL_ID`. Без них рабочая команда
+завершится понятной ошибкой.
+
+Остальные переменные опциональны. Если одна или несколько из них отсутствуют,
+система записывает предупреждение в `data/logs/`, использует
+`data/manual_inputs.json` и продолжает отправку черновика в review-чат.
 
 ## 3. GitHub Secrets
 
 Откройте **Settings → Secrets and variables → Actions → New repository secret**
-и добавьте:
+и добавьте обязательные Secrets:
 
 - `OPENAI_API_KEY`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_REVIEW_CHAT_ID` со значением `-5253592951`
 - `TELEGRAM_CHANNEL_ID` со значением `@Financebks`
+
+Опционально, по мере подключения источников, добавьте:
+
 - `TELEGRAM_API_ID`
 - `TELEGRAM_API_HASH`
 - `TELEGRAM_SESSION_STRING`
+- `X_BEARER_TOKEN`
 - `X_API_KEY`
+- `X_API_SECRET`
+- `X_ACCESS_TOKEN`
+- `X_ACCESS_TOKEN_SECRET`
 - `BARCHART_API_KEY`
+- `ONINVEST_API_KEY`
+- `YAHOO_FINANCE_API_KEY`
 
 Не добавляйте значения секретов в YAML, README, код или логи.
 
@@ -146,13 +165,14 @@ Workflow `morning_post.yml` запускается по будням в `13:10 U
 ## 8. Расширение источников
 
 - **X/Twitter:** реализовать `app/sources/x_reader.py`, читать `X_API_KEY` только
-  из окружения и нормализовать сигналы в формат `manual_inputs.json`.
+  из окружения вместе с другими `X_*` доступами и нормализовать сигналы.
 - **Telegram:** реализовать `app/sources/telegram_reader.py` через Telethon/MTProto
   с `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_STRING`. Bot API
   оставлять только для отправки и публикации.
-- **Yahoo Finance:** добавить сбор публичных рыночных данных в `yahoo.py`.
+- **Yahoo Finance:** добавить сбор данных в `yahoo.py`; при необходимости
+  использовать `YAHOO_FINANCE_API_KEY`.
 - **Barchart:** использовать `BARCHART_API_KEY` в `barchart.py`.
-- **Oninvest:** добавить отдельный адаптер и нормализацию источников.
+- **Oninvest:** использовать `ONINVEST_API_KEY` в отдельном адаптере.
 
 Каждый сигнал должен содержать источник, суть, тикеры/секторы, воздействие,
 силу, горизонт, дату и тип катализатора. Перед подключением источника проверьте
@@ -163,4 +183,3 @@ Workflow `morning_post.yml` запускается по будням в `13:10 U
 ```bash
 pytest
 ```
-

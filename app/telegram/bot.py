@@ -68,9 +68,7 @@ async def log_bot_error(update: object, context) -> None:
 
 
 def run_bot() -> None:
-    settings.require(
-        "telegram_bot_token", "openai_api_key", "telegram_review_chat_id", "telegram_channel_id"
-    )
+    settings.require_mvp()
     application = Application.builder().token(settings.telegram_bot_token).build()
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_error_handler(log_bot_error)

@@ -10,9 +10,7 @@ from app.workflow import build_draft
 
 
 async def generate_and_send(post_type: str) -> None:
-    settings.require(
-        "telegram_bot_token", "openai_api_key", "telegram_review_chat_id", "telegram_channel_id"
-    )
+    settings.require_mvp()
     try:
         draft = await asyncio.to_thread(build_draft, post_type)  # type: ignore[arg-type]
         async with Bot(settings.telegram_bot_token) as bot:

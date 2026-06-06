@@ -3,18 +3,10 @@ from datetime import datetime, timezone
 import os
 from typing import Any
 
-from app.config import ROOT_DIR
+from app.config import OPTIONAL_ENV_VARS, REQUIRED_ENV_VARS, ROOT_DIR
 
 
-SECRET_NAMES = [
-    "OPENAI_API_KEY",
-    "TELEGRAM_BOT_TOKEN",
-    "TELEGRAM_API_ID",
-    "TELEGRAM_API_HASH",
-    "TELEGRAM_SESSION_STRING",
-    "X_API_KEY",
-    "BARCHART_API_KEY",
-]
+SECRET_NAMES = [*REQUIRED_ENV_VARS, *OPTIONAL_ENV_VARS]
 
 
 def _redact(value: Any) -> Any:
