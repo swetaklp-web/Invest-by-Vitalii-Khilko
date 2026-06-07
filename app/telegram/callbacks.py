@@ -5,6 +5,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from telegram import Bot, CallbackQuery, InputMediaPhoto, Update
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from app.config import settings
@@ -28,11 +29,18 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
     await query.answer("Команда принята")
 
     if action == "publish":
-        published = await bot.copy_message(
-            chat_id=settings.telegram_channel_id,
-            from_chat_id=settings.telegram_review_chat_id,
-            message_id=query.message.message_id,
-        )
+        try:
+            published = await bot.copy_message(
+                chat_id=settings.telegram_channel_id,
+                from_chat_id=settings.telegram_review_chat_id,
+                message_id=query.message.message_id,
+            )
+        except TelegramError as error:
+            await query.message.reply_text(
+                "Не удалось опубликовать. Проверьте, что бот добавлен администратором "
+                f"в канал/группу публикации и что TELEGRAM_CHANNEL_ID задан верно. Ошибка: {error}"
+            )
+            raise
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("✅ Опубликовано в основном канале.")
         status = "published"
@@ -100,19 +108,30 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
             return
         from app.telegram.bot import review_keyboard
 
-        await bot.edit_message_media(
-            chat_id=settings.telegram_review_chat_id,
-            message_id=int(photo_message_id),
-            media=InputMediaPhoto(
-                media=query.message.photo[-1].file_id,
-                caption=query.message.caption_html or "",
-                parse_mode="HTML",
-            ),
-            reply_markup=review_keyboard(post_type, int(photo_message_id)),
+        main_message_id = int(photo_message_id)
+        try:
+            main_message = await bot.edit_message_media(
+                chat_id=settings.telegram_review_chat_id,
+                message_id=main_message_id,
+                media=InputMediaPhoto(
+                    media=query.message.photo[-1].file_id,
+                    caption=query.message.caption_html or "",
+                    parse_mode="HTML",
+                ),
+                reply_markup=review_keyboard(post_type, main_message_id),
+            )
+        except TelegramError as error:
+            await query.message.reply_text(
+                "Не удалось заменить картинку в основном черновике. "
+                f"Предпросмотр оставлен на месте. Ошибка: {error}"
+            )
+            raise
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text(
+            f"✅ Картинка принята. Основной черновик выше обновлён: message_id {main_message.message_id}."
         )
-        await query.message.delete()
         status = "image_accepted"
-        extra = {"telegram_photo_message_id": int(photo_message_id)}
+        extra = {"telegram_photo_message_id": main_message_id}
     elif action == "reject_image":
         await query.message.delete()
         status = "image_rejected"
