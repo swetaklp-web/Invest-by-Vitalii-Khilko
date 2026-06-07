@@ -17,6 +17,9 @@ def render_market_card(post: dict[str, Any], draft_id: str) -> Path:
         title=post.get("image_title") or post.get("title", ""),
         subtitle=post.get("image_subtitle", ""),
         tickers=post.get("image_tickers") or [f"${ticker}" for ticker in post.get("tickers", [])],
+        direction=post.get("market_direction", "[Watch]").strip("[]"),
+        strength=post.get("signal_strength", "medium").upper(),
+        catalyst=post.get("catalyst_type", "narrative").upper(),
     )
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
@@ -25,4 +28,3 @@ def render_market_card(post: dict[str, Any], draft_id: str) -> Path:
         page.screenshot(path=str(output_path))
         browser.close()
     return output_path
-

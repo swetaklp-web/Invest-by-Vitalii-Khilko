@@ -6,6 +6,7 @@ from telegram import Bot
 from app.config import settings
 from app.storage.logs import write_log
 from app.telegram.bot import run_bot, send_review_draft
+from app.telegram.callbacks import process_callbacks_once
 from app.workflow import build_draft
 
 
@@ -42,6 +43,13 @@ async def discover_chats() -> None:
         print(f"- type={chat_type} name={name!r} id={chat_id}")
 
 
+async def process_callbacks() -> None:
+    settings.require_mvp()
+    async with Bot(settings.telegram_bot_token) as bot:
+        processed = await process_callbacks_once(bot)
+    print(f"Processed callback queries: {processed}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Invest by Vitalii Khilko automation")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -49,12 +57,15 @@ def main() -> None:
     generate.add_argument("--type", choices=["morning_brief", "evening_theme"], required=True)
     subparsers.add_parser("bot", help="Run the persistent Telegram approval bot")
     subparsers.add_parser("discover-chats", help="List recent Telegram chat IDs")
+    subparsers.add_parser("process-callbacks", help="Process pending Telegram buttons once")
     args = parser.parse_args()
 
     if args.command == "bot":
         run_bot()
     elif args.command == "discover-chats":
         asyncio.run(discover_chats())
+    elif args.command == "process-callbacks":
+        asyncio.run(process_callbacks())
     else:
         asyncio.run(generate_and_send(args.type))
 

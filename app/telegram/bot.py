@@ -9,16 +9,17 @@ from app.storage.logs import write_log
 from app.telegram.callbacks import handle_callback
 
 
-def review_keyboard(draft_id: str) -> InlineKeyboardMarkup:
+def review_keyboard(post_type: str, photo_message_id: int) -> InlineKeyboardMarkup:
+    suffix = f"{post_type}:{photo_message_id}"
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("✅ Опубликовать", callback_data=f"publish:{draft_id}"),
-                InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{draft_id}"),
+                InlineKeyboardButton("✅ Опубликовать", callback_data=f"publish:{suffix}"),
+                InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{suffix}"),
             ],
             [
-                InlineKeyboardButton("🔁 Переделать короче", callback_data=f"shorter:{draft_id}"),
-                InlineKeyboardButton("🧠 Сделать глубже", callback_data=f"deeper:{draft_id}"),
+                InlineKeyboardButton("🔁 Переделать короче", callback_data=f"shorter:{suffix}"),
+                InlineKeyboardButton("🧠 Сделать глубже", callback_data=f"deeper:{suffix}"),
             ],
         ]
     )
@@ -37,18 +38,20 @@ def service_block(draft: dict) -> str:
 
 async def send_review_draft(bot, draft: dict) -> None:
     with Path(draft["image_path"]).open("rb") as image:
-        await bot.send_photo(chat_id=settings.telegram_review_chat_id, photo=image)
-    await bot.send_message(
+        photo_message = await bot.send_photo(chat_id=settings.telegram_review_chat_id, photo=image)
+    text_message = await bot.send_message(
         chat_id=settings.telegram_review_chat_id,
         text=draft["post"]["telegram_text"],
         disable_web_page_preview=True,
+        reply_markup=review_keyboard(draft["post"]["post_type"], photo_message.message_id),
     )
     message = await bot.send_message(
         chat_id=settings.telegram_review_chat_id,
         text=service_block(draft).lstrip(),
-        reply_markup=review_keyboard(draft["id"]),
     )
-    draft["telegram_message_id"] = message.message_id
+    draft["telegram_message_id"] = text_message.message_id
+    draft["telegram_service_message_id"] = message.message_id
+    draft["telegram_photo_message_id"] = photo_message.message_id
     save_draft(draft)
     write_log(
         {

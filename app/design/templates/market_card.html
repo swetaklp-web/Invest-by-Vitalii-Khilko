@@ -6,36 +6,63 @@
     * { box-sizing: border-box; }
     body {
       margin: 0; width: 1280px; height: 720px; overflow: hidden;
-      font-family: Inter, Arial, sans-serif; color: #10233f;
-      background: linear-gradient(135deg, #f8fbff 0%, #edf5ff 100%);
+      font-family: Inter, Arial, sans-serif; color: #f7fafc;
+      background: #071d2c;
     }
-    .page { padding: 62px 72px; height: 100%; position: relative; }
-    .brand { color: #2563eb; font-size: 22px; font-weight: 800; letter-spacing: .08em; }
-    .date { position: absolute; right: 72px; top: 62px; color: #64748b; font-size: 20px; }
-    h1 { width: 930px; margin: 82px 0 18px; font-size: 62px; line-height: 1.06; letter-spacing: -.04em; }
-    .subtitle { width: 900px; color: #53657e; font-size: 27px; line-height: 1.35; }
-    .tickers { display: flex; gap: 14px; margin-top: 58px; flex-wrap: wrap; }
+    .page { padding: 54px 64px; height: 100%; position: relative; }
+    .grid {
+      position: absolute; inset: 0; opacity: .14;
+      background-image: linear-gradient(#8eb3c5 1px, transparent 1px), linear-gradient(90deg, #8eb3c5 1px, transparent 1px);
+      background-size: 64px 64px;
+    }
+    .brand { color: #dfff3f; font-size: 20px; font-weight: 850; letter-spacing: .1em; position: relative; }
+    .date { position: absolute; right: 64px; top: 56px; color: #9db2bf; font-size: 19px; }
+    .content { position: relative; width: 820px; }
+    h1 { margin: 74px 0 18px; font-size: 58px; line-height: 1.04; letter-spacing: -.04em; }
+    .subtitle { width: 780px; color: #b8cad4; font-size: 25px; line-height: 1.32; }
+    .tickers { display: flex; gap: 12px; margin-top: 46px; flex-wrap: wrap; }
     .ticker {
-      background: rgba(255,255,255,.9); border: 1px solid #dbe7f5; border-radius: 14px;
-      padding: 14px 20px; font-size: 22px; font-weight: 800; box-shadow: 0 10px 30px rgba(39,72,125,.08);
+      background: rgba(255,255,255,.08); border: 1px solid rgba(220,255,63,.35); border-radius: 12px;
+      padding: 12px 18px; font-size: 21px; font-weight: 800; color: #efffb0;
     }
-    .accent { position: absolute; right: -70px; bottom: -110px; width: 420px; height: 420px;
-      border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,.20), rgba(37,99,235,0) 68%); }
-    .line { position: absolute; left: 72px; bottom: 54px; width: 1136px; height: 2px; background: #dbe7f5; }
-    .footer { position: absolute; left: 72px; bottom: 22px; color: #74849b; font-size: 16px; }
+    .panel {
+      position: absolute; right: 64px; top: 132px; width: 292px; height: 430px;
+      border: 1px solid rgba(255,255,255,.16); border-radius: 24px; padding: 28px;
+      background: linear-gradient(155deg, rgba(255,255,255,.11), rgba(255,255,255,.035));
+      box-shadow: 0 24px 70px rgba(0,0,0,.22);
+    }
+    .panel-label { color: #91a8b5; font-size: 15px; letter-spacing: .12em; margin-bottom: 8px; }
+    .panel-value { font-size: 34px; font-weight: 850; color: #dfff3f; margin-bottom: 32px; }
+    .signal-line { height: 2px; background: linear-gradient(90deg, #dfff3f, #42b9ff); margin: 6px 0 30px; }
+    .bars { display: flex; align-items: end; gap: 11px; height: 105px; margin-top: 18px; }
+    .bar { width: 36px; border-radius: 7px 7px 2px 2px; background: #31566a; }
+    .bar:nth-child(1) { height: 34%; } .bar:nth-child(2) { height: 48%; }
+    .bar:nth-child(3) { height: 64%; } .bar:nth-child(4) { height: 82%; background: #78cfff; }
+    .bar:nth-child(5) { height: 100%; background: #dfff3f; }
+    .footer { position: absolute; left: 64px; bottom: 28px; color: #829ba8; font-size: 15px; letter-spacing: .08em; }
   </style>
 </head>
 <body>
   <div class="page">
+    <div class="grid"></div>
     <div class="brand">INVEST BY VITALII KHILKO</div>
     <div class="date">{{ date }}</div>
-    <h1>{{ title }}</h1>
-    <div class="subtitle">{{ subtitle }}</div>
-    <div class="tickers">{% for ticker in tickers %}<div class="ticker">{{ ticker }}</div>{% endfor %}</div>
-    <div class="accent"></div>
-    <div class="line"></div>
-    <div class="footer">US MARKET INTELLIGENCE • TELEGRAM</div>
+    <div class="content">
+      <h1>{{ title }}</h1>
+      <div class="subtitle">{{ subtitle }}</div>
+      <div class="tickers">{% for ticker in tickers[:6] %}<div class="ticker">{{ ticker }}</div>{% endfor %}</div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">MARKET SIGNAL</div>
+      <div class="panel-value">{{ direction }}</div>
+      <div class="signal-line"></div>
+      <div class="panel-label">STRENGTH</div>
+      <div class="panel-value">{{ strength }}</div>
+      <div class="panel-label">CATALYST</div>
+      <div class="panel-value" style="font-size:25px">{{ catalyst }}</div>
+      <div class="bars"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+    </div>
+    <div class="footer">US MARKET INTELLIGENCE</div>
   </div>
 </body>
 </html>
-
