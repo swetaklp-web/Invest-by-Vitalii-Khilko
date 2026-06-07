@@ -1,10 +1,10 @@
-name: Discover Telegram chat
+name: Check Telegram publish target
 
 on:
   workflow_dispatch:
 
 jobs:
-  discover:
+  check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -14,7 +14,8 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: List recent Telegram chats
+      - name: Check publish target
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        run: python -m app.main discover-chats
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python -m app.main check-publish-target
