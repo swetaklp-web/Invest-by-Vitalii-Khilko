@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from openai import OpenAI
 
 from app.config import ROOT_DIR, settings
+from app.telegram.formatting import sanitize_telegram_html
 
 
 PROMPTS_DIR = ROOT_DIR / "app" / "ai" / "prompts"
@@ -73,4 +74,6 @@ def generate_post(
             {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
         ],
     )
-    return json.loads(response.choices[0].message.content or "{}")
+    post = json.loads(response.choices[0].message.content or "{}")
+    post["telegram_text"] = sanitize_telegram_html(str(post.get("telegram_text", "")))
+    return post

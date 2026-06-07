@@ -26,6 +26,7 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         if not query.message.text:
             await query.message.reply_text("Не удалось прочитать текст черновика.")
             return
+        post_html = query.message.text_html
         photo = await bot.copy_message(
             chat_id=settings.telegram_channel_id,
             from_chat_id=settings.telegram_review_chat_id,
@@ -33,7 +34,8 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         )
         text = await bot.send_message(
             chat_id=settings.telegram_channel_id,
-            text=query.message.text,
+            text=post_html,
+            parse_mode="HTML",
             disable_web_page_preview=True,
         )
         await query.edit_message_reply_markup(reply_markup=None)
@@ -51,7 +53,7 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         from app.telegram.bot import send_review_draft
         from app.workflow import build_draft
 
-        previous_post = {"post_type": post_type, "telegram_text": query.message.text or ""}
+        previous_post = {"post_type": post_type, "telegram_text": query.message.text_html or ""}
         new_draft = await asyncio.to_thread(build_draft, post_type, action, previous_post)
         await send_review_draft(bot, new_draft)
         status = f"revision_{action}"

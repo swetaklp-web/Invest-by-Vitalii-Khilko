@@ -12,14 +12,20 @@ def render_market_card(post: dict[str, Any], draft_id: str) -> Path:
     output_path = ROOT_DIR / "data" / "drafts" / f"{draft_id}.png"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     env = Environment(loader=FileSystemLoader(template_dir), autoescape=select_autoescape())
+    direction = {
+        "[Bullish]": "Позитивный импульс",
+        "[Bearish]": "Негативный импульс",
+        "[Watch]": "На радаре",
+        "[Volatile]": "Высокая волатильность",
+    }.get(post.get("market_direction"), "На радаре")
     html = env.get_template("market_card.html").render(
         date=post.get("date", ""),
         title=post.get("image_title") or post.get("title", ""),
         subtitle=post.get("image_subtitle", ""),
         tickers=post.get("image_tickers") or [f"${ticker}" for ticker in post.get("tickers", [])],
-        direction=post.get("market_direction", "[Watch]").strip("[]"),
-        strength=post.get("signal_strength", "medium").upper(),
-        catalyst=post.get("catalyst_type", "narrative").upper(),
+        direction=direction,
+        strength=post.get("signal_strength", "medium"),
+        catalyst=post.get("catalyst_type", "narrative"),
     )
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()

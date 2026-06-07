@@ -42,6 +42,7 @@ async def send_review_draft(bot, draft: dict) -> None:
     text_message = await bot.send_message(
         chat_id=settings.telegram_review_chat_id,
         text=draft["post"]["telegram_text"],
+        parse_mode="HTML",
         disable_web_page_preview=True,
         reply_markup=review_keyboard(draft["post"]["post_type"], photo_message.message_id),
     )

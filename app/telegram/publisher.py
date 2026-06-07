@@ -11,7 +11,7 @@ async def publish_draft(bot: Bot, draft: dict) -> tuple[int, int]:
     text_message = await bot.send_message(
         chat_id=settings.telegram_channel_id,
         text=draft["post"]["telegram_text"],
+        parse_mode="HTML",
         disable_web_page_preview=True,
     )
     return photo_message.message_id, text_message.message_id
-
