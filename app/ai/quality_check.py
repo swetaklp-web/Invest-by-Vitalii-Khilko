@@ -25,8 +25,8 @@ def check_post(post: dict[str, Any]) -> dict[str, Any]:
 
     if not text:
         issues.append("telegram_text is empty")
-    if len(text) > 3500:
-        issues.append(f"telegram_text exceeds 3500 characters: {len(text)}")
+    if len(text) > 1000:
+        issues.append(f"telegram_text exceeds 1000 characters: {len(text)}")
     if not post.get("date") or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(post.get("date"))):
         issues.append("date is missing or invalid")
     if any(re.search(pattern, lowered) for pattern in FORBIDDEN_PATTERNS):
@@ -47,4 +47,3 @@ def check_post(post: dict[str, Any]) -> dict[str, Any]:
         "risk_flags": risk_flags,
         "requires_manual_review": bool(issues or risk_flags),
     }
-

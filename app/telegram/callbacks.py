@@ -4,7 +4,7 @@ import re
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from telegram import Bot, CallbackQuery, Update
+from telegram import Bot, CallbackQuery, InputMediaPhoto, Update
 from telegram.ext import ContextTypes
 
 from app.config import settings
@@ -27,46 +27,36 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
     await query.answer("Команда принята")
 
     if action == "publish":
-        if not query.message.text:
-            await query.message.reply_text("Не удалось прочитать текст черновика.")
-            return
-        post_html = query.message.text_html
-        photo = await bot.copy_message(
+        published = await bot.copy_message(
             chat_id=settings.telegram_channel_id,
             from_chat_id=settings.telegram_review_chat_id,
-            message_id=int(photo_message_id),
-        )
-        text = await bot.send_message(
-            chat_id=settings.telegram_channel_id,
-            text=post_html,
-            parse_mode="HTML",
-            disable_web_page_preview=True,
+            message_id=query.message.message_id,
         )
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("✅ Опубликовано в основном канале.")
         status = "published"
-        extra = {"channel_message_ids": [photo.message_id, text.message_id]}
+        extra = {"channel_message_ids": [published.message_id]}
     elif action == "reject":
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("❌ Черновик отклонён.")
         status = "rejected"
         extra = {}
-    elif action in {"shorter", "deeper"}:
+    elif action == "rewrite":
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("Готовлю новую версию…")
         from app.telegram.bot import send_review_draft
         from app.workflow import build_draft
 
-        previous_post = {"post_type": post_type, "telegram_text": query.message.text_html or ""}
-        new_draft = await asyncio.to_thread(build_draft, post_type, action, previous_post)
+        previous_post = {"post_type": post_type, "telegram_text": query.message.caption_html or ""}
+        new_draft = await asyncio.to_thread(build_draft, post_type, "shorter", previous_post)
         await send_review_draft(bot, new_draft)
-        status = f"revision_{action}"
+        status = "revision_text"
         extra = {}
     elif action == "image":
         from app.design.render_image import render_market_card
-        from app.telegram.bot import review_keyboard
+        from app.telegram.bot import image_review_keyboard
 
-        plain_text = query.message.text or ""
+        plain_text = query.message.caption or ""
         first_paragraph = plain_text.split("\n\n", 1)[0].strip()
         tickers = list(dict.fromkeys(re.findall(r"\$[A-Z]{1,6}", plain_text)))[:6]
         post = {
@@ -85,12 +75,35 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
             photo = await bot.send_photo(
                 chat_id=settings.telegram_review_chat_id,
                 photo=image,
-                caption="🖼 Альтернативный вариант обложки",
+                caption=query.message.caption_html or "",
+                parse_mode="HTML",
+                reply_markup=image_review_keyboard(post_type, query.message.message_id),
             )
-        await query.edit_message_reply_markup(reply_markup=review_keyboard(post_type, photo.message_id))
-        await query.message.reply_text("Новая обложка создана. Кнопки теперь используют её.")
         status = "image_variant"
         extra = {"telegram_photo_message_id": photo.message_id}
+    elif action == "accept_image":
+        if not query.message.photo:
+            await query.message.reply_text("Не удалось прочитать новую картинку.")
+            return
+        from app.telegram.bot import review_keyboard
+
+        await bot.edit_message_media(
+            chat_id=settings.telegram_review_chat_id,
+            message_id=int(photo_message_id),
+            media=InputMediaPhoto(
+                media=query.message.photo[-1].file_id,
+                caption=query.message.caption_html or "",
+                parse_mode="HTML",
+            ),
+            reply_markup=review_keyboard(post_type, int(photo_message_id)),
+        )
+        await query.message.delete()
+        status = "image_accepted"
+        extra = {"telegram_photo_message_id": int(photo_message_id)}
+    elif action == "reject_image":
+        await query.message.delete()
+        status = "image_rejected"
+        extra = {}
     else:
         return
 

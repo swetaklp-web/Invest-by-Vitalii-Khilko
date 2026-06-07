@@ -9,20 +9,29 @@ from app.storage.logs import write_log
 from app.telegram.callbacks import handle_callback
 
 
-def review_keyboard(post_type: str, photo_message_id: int) -> InlineKeyboardMarkup:
-    suffix = f"{post_type}:{photo_message_id}"
+def review_keyboard(post_type: str, message_id: int) -> InlineKeyboardMarkup:
+    suffix = f"{post_type}:{message_id}"
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton("✅ Опубликовать", callback_data=f"publish:{suffix}"),
-                InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{suffix}"),
+                InlineKeyboardButton("🔁 Новый вариант текста", callback_data=f"rewrite:{suffix}"),
             ],
             [
-                InlineKeyboardButton("🔁 Переделать короче", callback_data=f"shorter:{suffix}"),
-                InlineKeyboardButton("🧠 Сделать глубже", callback_data=f"deeper:{suffix}"),
+                InlineKeyboardButton("🖼 Новый вариант картинки", callback_data=f"image:{suffix}"),
+                InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{suffix}"),
             ],
-            [InlineKeyboardButton("🖼 Ещё вариант картинки", callback_data=f"image:{suffix}")],
         ]
+    )
+
+
+def image_review_keyboard(post_type: str, main_message_id: int) -> InlineKeyboardMarkup:
+    suffix = f"{post_type}:{main_message_id}"
+    return InlineKeyboardMarkup(
+        [[
+            InlineKeyboardButton("✅ Принять картинку", callback_data=f"accept_image:{suffix}"),
+            InlineKeyboardButton("❌ Отклонить картинку", callback_data=f"reject_image:{suffix}"),
+        ]]
     )
 
 
@@ -39,19 +48,22 @@ def service_block(draft: dict) -> str:
 
 async def send_review_draft(bot, draft: dict) -> None:
     with Path(draft["image_path"]).open("rb") as image:
-        photo_message = await bot.send_photo(chat_id=settings.telegram_review_chat_id, photo=image)
-    text_message = await bot.send_message(
+        photo_message = await bot.send_photo(
+            chat_id=settings.telegram_review_chat_id,
+            photo=image,
+            caption=draft["post"]["telegram_text"],
+            parse_mode="HTML",
+        )
+    await bot.edit_message_reply_markup(
         chat_id=settings.telegram_review_chat_id,
-        text=draft["post"]["telegram_text"],
-        parse_mode="HTML",
-        disable_web_page_preview=True,
+        message_id=photo_message.message_id,
         reply_markup=review_keyboard(draft["post"]["post_type"], photo_message.message_id),
     )
     message = await bot.send_message(
         chat_id=settings.telegram_review_chat_id,
         text=service_block(draft).lstrip(),
     )
-    draft["telegram_message_id"] = text_message.message_id
+    draft["telegram_message_id"] = photo_message.message_id
     draft["telegram_service_message_id"] = message.message_id
     draft["telegram_photo_message_id"] = photo_message.message_id
     save_draft(draft)

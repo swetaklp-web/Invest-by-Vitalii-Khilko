@@ -67,7 +67,7 @@ def generate_post(
                         _prompt("system_invest_by_vitalii.md"),
                         _prompt("telegram_style.md"),
                         _prompt("compliance_rules.md"),
-                        "Верни только валидный JSON. telegram_text не длиннее 3500 символов.",
+                        "Верни только валидный JSON. telegram_text не длиннее 1000 символов.",
                     ]
                 ),
             },

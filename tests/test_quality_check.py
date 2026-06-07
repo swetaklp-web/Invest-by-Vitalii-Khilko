@@ -34,3 +34,8 @@ def test_risk_flags_require_manual_review_but_do_not_fail_quality() -> None:
     assert result["passed"] is True
     assert result["requires_manual_review"] is True
 
+
+def test_caption_over_1000_characters_fails() -> None:
+    post = base_post()
+    post["telegram_text"] = "$NVDA " + ("а" * 1000)
+    assert check_post(post)["passed"] is False
