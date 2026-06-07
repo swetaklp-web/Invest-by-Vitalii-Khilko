@@ -21,6 +21,7 @@ def review_keyboard(post_type: str, photo_message_id: int) -> InlineKeyboardMark
                 InlineKeyboardButton("🔁 Переделать короче", callback_data=f"shorter:{suffix}"),
                 InlineKeyboardButton("🧠 Сделать глубже", callback_data=f"deeper:{suffix}"),
             ],
+            [InlineKeyboardButton("🖼 Ещё вариант картинки", callback_data=f"image:{suffix}")],
         ]
     )
 

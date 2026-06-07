@@ -3,17 +3,17 @@ name: Process Telegram approval buttons
 on:
   workflow_dispatch:
   schedule:
-    # GitHub Actions checks new button presses every 5 minutes.
-    - cron: "*/5 * * * *"
+    # Restarts the long-polling bot every four hours.
+    - cron: "0 */4 * * *"
 
 concurrency:
   group: telegram-callbacks
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   process:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 250
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,10 +22,10 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: playwright install --with-deps chromium
-      - name: Process pending Telegram buttons
+      - name: Keep Telegram approval buttons online
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_REVIEW_CHAT_ID: ${{ secrets.TELEGRAM_REVIEW_CHAT_ID }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-        run: python -m app.main process-callbacks
+        run: timeout 14300s python -m app.main bot || test $? -eq 124

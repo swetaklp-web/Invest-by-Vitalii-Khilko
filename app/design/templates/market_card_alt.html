@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; width: 1280px; height: 720px; overflow: hidden; font-family: Inter, Arial, sans-serif; color: #111827; background: #eef4ff; }
+    .page { padding: 38px 48px; height: 100%; }
+    .card { height: 100%; border-radius: 30px; background: #fff; overflow: hidden; display: grid; grid-template-columns: 43% 57%; box-shadow: 0 18px 55px rgba(35,61,98,.14); }
+    .visual { background: linear-gradient(150deg, #1b55d9, #72a7ff); color: white; padding: 48px; position: relative; }
+    .brand { font-size: 15px; font-weight: 800; letter-spacing: .09em; opacity: .8; }
+    .signal { margin-top: 105px; font-size: 25px; font-weight: 750; }
+    .bars { position: absolute; left: 48px; right: 48px; bottom: 64px; height: 220px; display: flex; align-items: end; gap: 14px; }
+    .bar { flex: 1; background: rgba(255,255,255,.32); border-radius: 10px 10px 0 0; }
+    .bar:nth-child(1) { height: 35%; } .bar:nth-child(2) { height: 52%; } .bar:nth-child(3) { height: 68%; } .bar:nth-child(4) { height: 85%; } .bar:nth-child(5) { height: 100%; background: #fff; }
+    .content { padding: 48px 52px; position: relative; }
+    .date { color: #667085; font-size: 18px; }
+    h1 { margin: 70px 0 18px; font-size: 48px; line-height: 1.08; letter-spacing: -.035em; }
+    .subtitle { color: #475467; font-size: 23px; line-height: 1.35; }
+    .tickers { display: flex; gap: 10px; margin-top: 34px; flex-wrap: wrap; }
+    .ticker { color: #2563eb; background: #edf4ff; border-radius: 20px; padding: 8px 15px; font-size: 19px; font-weight: 750; }
+    .footer { position: absolute; bottom: 40px; left: 52px; color: #98a2b3; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+  </style>
+</head>
+<body>
+  <div class="page"><div class="card">
+    <div class="visual">
+      <div class="brand">INVEST BY VITALII KHILKO</div>
+      <div class="signal">{{ direction }}</div>
+      <div class="bars"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+    </div>
+    <div class="content">
+      <div class="date">{{ date }}</div>
+      <h1>{{ title }}</h1>
+      <div class="subtitle">{{ subtitle }}</div>
+      <div class="tickers">{% for ticker in tickers[:6] %}<div class="ticker">{{ ticker }}</div>{% endfor %}</div>
+      <div class="footer">{{ catalyst }} · {{ strength }}</div>
+    </div>
+  </div></div>
+</body>
+</html>

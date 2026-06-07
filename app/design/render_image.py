@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 from app.config import ROOT_DIR
 
 
-def render_market_card(post: dict[str, Any], draft_id: str) -> Path:
+def render_market_card(post: dict[str, Any], draft_id: str, variant: str = "default") -> Path:
     template_dir = ROOT_DIR / "app" / "design" / "templates"
     output_path = ROOT_DIR / "data" / "drafts" / f"{draft_id}.png"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -18,7 +18,8 @@ def render_market_card(post: dict[str, Any], draft_id: str) -> Path:
         "[Watch]": "На радаре",
         "[Volatile]": "Высокая волатильность",
     }.get(post.get("market_direction"), "На радаре")
-    html = env.get_template("market_card.html").render(
+    template_name = "market_card_alt.html" if variant == "alternate" else "market_card.html"
+    html = env.get_template(template_name).render(
         date=post.get("date", ""),
         title=post.get("image_title") or post.get("title", ""),
         subtitle=post.get("image_subtitle", ""),

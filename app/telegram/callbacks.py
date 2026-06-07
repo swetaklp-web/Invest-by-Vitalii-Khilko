@@ -1,4 +1,8 @@
 import asyncio
+from datetime import datetime
+import re
+from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from telegram import Bot, CallbackQuery, Update
 from telegram.ext import ContextTypes
@@ -58,6 +62,35 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         await send_review_draft(bot, new_draft)
         status = f"revision_{action}"
         extra = {}
+    elif action == "image":
+        from app.design.render_image import render_market_card
+        from app.telegram.bot import review_keyboard
+
+        plain_text = query.message.text or ""
+        first_paragraph = plain_text.split("\n\n", 1)[0].strip()
+        tickers = list(dict.fromkeys(re.findall(r"\$[A-Z]{1,6}", plain_text)))[:6]
+        post = {
+            "date": datetime.now(ZoneInfo("Europe/Moscow")).date().isoformat(),
+            "image_title": first_paragraph[:95] or "Главная тема рынка",
+            "image_subtitle": "Альтернативный вариант обложки",
+            "image_tickers": tickers,
+            "market_direction": "[Watch]",
+            "signal_strength": "medium",
+            "catalyst_type": "narrative",
+        }
+        image_path = await asyncio.to_thread(
+            render_market_card, post, f"image-{uuid4().hex[:10]}", "alternate"
+        )
+        with image_path.open("rb") as image:
+            photo = await bot.send_photo(
+                chat_id=settings.telegram_review_chat_id,
+                photo=image,
+                caption="🖼 Альтернативный вариант обложки",
+            )
+        await query.edit_message_reply_markup(reply_markup=review_keyboard(post_type, photo.message_id))
+        await query.message.reply_text("Новая обложка создана. Кнопки теперь используют её.")
+        status = "image_variant"
+        extra = {"telegram_photo_message_id": photo.message_id}
     else:
         return
 
