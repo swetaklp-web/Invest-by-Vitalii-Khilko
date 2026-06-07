@@ -14,8 +14,9 @@ def test_review_keyboard_has_four_actions() -> None:
     ]
 
 
-def test_image_review_keyboard_accepts_or_rejects_variant() -> None:
-    assert button_labels(image_review_keyboard("morning_brief", 123)) == [
+def test_image_review_keyboard_accepts_retries_or_rejects_variant() -> None:
+    assert button_labels(image_review_keyboard("morning_brief", 123, 2)) == [
         "✅ Принять картинку",
+        "🖼 Ещё вариант",
         "❌ Отклонить картинку",
     ]

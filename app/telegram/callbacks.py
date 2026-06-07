@@ -18,12 +18,13 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         await query.answer("Эта кнопка доступна только в чате согласования.", show_alert=True)
         return
 
-    parts = query.data.split(":", 2)
-    if len(parts) != 3:
+    parts = query.data.split(":")
+    if len(parts) not in {3, 4}:
         await query.answer("Это кнопка старого черновика. Создайте новый.", show_alert=True)
         await query.edit_message_reply_markup(reply_markup=None)
         return
-    action, post_type, photo_message_id = parts
+    action, post_type, photo_message_id = parts[:3]
+    variant_number = int(parts[3]) if len(parts) == 4 and parts[3].isdigit() else 1
     await query.answer("Команда принята")
 
     if action == "publish":
@@ -69,18 +70,32 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
             "catalyst_type": "narrative",
         }
         image_path = await asyncio.to_thread(
-            render_market_card, post, f"image-{uuid4().hex[:10]}", "alternate"
+            render_market_card, post, f"image-{uuid4().hex[:10]}", str(variant_number)
         )
+        main_message_id = int(photo_message_id)
         with image_path.open("rb") as image:
-            photo = await bot.send_photo(
-                chat_id=settings.telegram_review_chat_id,
-                photo=image,
-                caption=query.message.caption_html or "",
-                parse_mode="HTML",
-                reply_markup=image_review_keyboard(post_type, query.message.message_id),
-            )
+            if query.message.message_id == main_message_id:
+                photo = await bot.send_photo(
+                    chat_id=settings.telegram_review_chat_id,
+                    photo=image,
+                    caption=query.message.caption_html or "",
+                    parse_mode="HTML",
+                    reply_markup=image_review_keyboard(post_type, main_message_id, variant_number),
+                )
+            else:
+                await bot.edit_message_media(
+                    chat_id=settings.telegram_review_chat_id,
+                    message_id=query.message.message_id,
+                    media=InputMediaPhoto(
+                        media=image,
+                        caption=query.message.caption_html or "",
+                        parse_mode="HTML",
+                    ),
+                    reply_markup=image_review_keyboard(post_type, main_message_id, variant_number),
+                )
+                photo = query.message
         status = "image_variant"
-        extra = {"telegram_photo_message_id": photo.message_id}
+        extra = {"telegram_photo_message_id": photo.message_id, "image_variant": variant_number}
     elif action == "accept_image":
         if not query.message.photo:
             await query.message.reply_text("Не удалось прочитать новую картинку.")

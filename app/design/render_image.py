@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any
+import colorsys
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from playwright.sync_api import sync_playwright
@@ -18,7 +19,14 @@ def render_market_card(post: dict[str, Any], draft_id: str, variant: str = "defa
         "[Watch]": "На радаре",
         "[Volatile]": "Высокая волатильность",
     }.get(post.get("market_direction"), "На радаре")
-    template_name = "market_card_alt.html" if variant == "alternate" else "market_card.html"
+    variant_number = int(variant) if variant.isdigit() else 0
+    template_name = "market_card_variant.html" if variant_number else "market_card.html"
+    hue = ((variant_number * 0.173) % 1.0) if variant_number else 0.6
+
+    def color(lightness: float, saturation: float = 0.72) -> str:
+        red, green, blue = colorsys.hls_to_rgb(hue, lightness, saturation)
+        return f"#{round(red * 255):02x}{round(green * 255):02x}{round(blue * 255):02x}"
+
     html = env.get_template(template_name).render(
         date=post.get("date", ""),
         title=post.get("image_title") or post.get("title", ""),
@@ -27,6 +35,11 @@ def render_market_card(post: dict[str, Any], draft_id: str, variant: str = "defa
         direction=direction,
         strength=post.get("signal_strength", "medium"),
         catalyst=post.get("catalyst_type", "narrative"),
+        variant_number=variant_number,
+        layout=variant_number % 3,
+        accent=color(0.52),
+        accent_dark=color(0.30),
+        accent_soft=color(0.93, 0.45),
     )
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()

@@ -18,20 +18,23 @@ def review_keyboard(post_type: str, message_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🔁 Новый вариант текста", callback_data=f"rewrite:{suffix}"),
             ],
             [
-                InlineKeyboardButton("🖼 Новый вариант картинки", callback_data=f"image:{suffix}"),
+                InlineKeyboardButton("🖼 Новый вариант картинки", callback_data=f"image:{suffix}:1"),
                 InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{suffix}"),
             ],
         ]
     )
 
 
-def image_review_keyboard(post_type: str, main_message_id: int) -> InlineKeyboardMarkup:
+def image_review_keyboard(post_type: str, main_message_id: int, variant_number: int) -> InlineKeyboardMarkup:
     suffix = f"{post_type}:{main_message_id}"
     return InlineKeyboardMarkup(
-        [[
-            InlineKeyboardButton("✅ Принять картинку", callback_data=f"accept_image:{suffix}"),
-            InlineKeyboardButton("❌ Отклонить картинку", callback_data=f"reject_image:{suffix}"),
-        ]]
+        [
+            [
+                InlineKeyboardButton("✅ Принять картинку", callback_data=f"accept_image:{suffix}"),
+                InlineKeyboardButton("🖼 Ещё вариант", callback_data=f"image:{suffix}:{variant_number + 1}"),
+            ],
+            [InlineKeyboardButton("❌ Отклонить картинку", callback_data=f"reject_image:{suffix}")],
+        ]
     )
 
 
