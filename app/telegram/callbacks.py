@@ -58,12 +58,10 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         from app.telegram.bot import image_review_keyboard
 
         plain_text = query.message.caption or ""
-        first_paragraph = plain_text.split("\n\n", 1)[0].strip()
         tickers = list(dict.fromkeys(re.findall(r"\$[A-Z]{1,6}", plain_text)))[:6]
         post = {
             "date": datetime.now(ZoneInfo("Europe/Moscow")).date().isoformat(),
-            "image_title": first_paragraph[:95] or "Главная тема рынка",
-            "image_subtitle": "Альтернативный вариант обложки",
+            "image_sentence": plain_text,
             "image_tickers": tickers,
             "market_direction": "[Watch]",
             "signal_strength": "medium",

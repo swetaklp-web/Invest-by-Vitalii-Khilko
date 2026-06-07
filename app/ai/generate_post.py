@@ -43,8 +43,8 @@ def generate_post(
         "catalyst_type": "event | fundamental | flows | narrative | macro | technical | rumor",
         "sources": [{"name": "...", "url": "...", "summary": "..."}],
         "telegram_text": "...",
-        "image_title": "...",
-        "image_subtitle": "...",
+        "image_title": "Одно короткое законченное предложение до 92 символов.",
+        "image_subtitle": "",
         "image_tickers": ["$NVDA"],
         "risk_flags": [],
     }
@@ -68,6 +68,11 @@ def generate_post(
                         _prompt("telegram_style.md"),
                         _prompt("compliance_rules.md"),
                         "Верни только валидный JSON. telegram_text не длиннее 1000 символов.",
+                        (
+                            "Для image_title верни ровно одно короткое законченное предложение "
+                            "до 92 символов. Не используй фразы «на радаре» и "
+                            "«альтернативный вариант обложки». image_subtitle всегда оставляй пустым."
+                        ),
                     ]
                 ),
             },

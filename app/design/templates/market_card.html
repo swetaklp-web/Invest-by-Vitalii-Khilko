@@ -14,10 +14,8 @@
       height: 100%; background: #fff; border-radius: 28px; padding: 42px 48px;
       box-shadow: 0 18px 55px rgba(40, 48, 58, .12); position: relative; overflow: hidden;
     }
-    .brand { color: #667085; font-size: 16px; font-weight: 750; letter-spacing: .08em; }
     .date { position: absolute; right: 48px; top: 43px; color: #667085; font-size: 18px; }
-    h1 { width: 910px; margin: 44px 0 10px; font-size: 48px; line-height: 1.08; letter-spacing: -.035em; }
-    .subtitle { width: 880px; color: #475467; font-size: 23px; line-height: 1.32; }
+    h1 { width: 940px; margin: 70px 0 10px; font-size: 50px; line-height: 1.12; letter-spacing: -.03em; }
     .tickers { display: flex; gap: 10px; margin-top: 25px; flex-wrap: wrap; }
     .ticker {
       color: #4385ed; background: #edf4ff; border-radius: 20px;
@@ -29,25 +27,19 @@
     .bar:nth-child(3) { height: 56%; } .bar:nth-child(4) { height: 72%; }
     .bar:nth-child(5) { height: 92%; background: #4385ed; }
     .bar-label { position: absolute; left: 0; right: 0; top: -29px; text-align: center; color: #344054; font-weight: 750; font-size: 16px; }
-    .signal { position: absolute; right: 48px; bottom: 28px; color: #344054; font-size: 16px; font-weight: 700; }
-    .footer { position: absolute; left: 48px; bottom: 28px; color: #98a2b3; font-size: 14px; letter-spacing: .06em; }
   </style>
 </head>
 <body>
   <div class="page">
     <div class="card">
-      <div class="brand">INVEST BY VITALII KHILKO</div>
       <div class="date">{{ date }}</div>
-      <h1>{{ title }}</h1>
-      <div class="subtitle">{{ subtitle }}</div>
+      <h1>{{ sentence }}</h1>
       <div class="tickers">{% for ticker in tickers[:6] %}<div class="ticker">{{ ticker }}</div>{% endfor %}</div>
       <div class="chart">
         {% for ticker in tickers[:5] %}
         <div class="bar"><div class="bar-label">{{ ticker }}</div></div>
         {% endfor %}
       </div>
-      <div class="footer">{{ catalyst }} · {{ strength }}</div>
-      <div class="signal">{{ direction }}</div>
     </div>
   </div>
 </body>
