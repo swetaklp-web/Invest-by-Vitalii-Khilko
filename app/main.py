@@ -24,7 +24,10 @@ async def generate_and_send(post_type: str) -> None:
 async def discover_chats() -> None:
     settings.require("telegram_bot_token")
     async with Bot(settings.telegram_bot_token) as bot:
-        updates = await bot.get_updates(timeout=10, allowed_updates=["message"])
+        updates = await bot.get_updates(
+            timeout=10,
+            allowed_updates=["message", "channel_post", "my_chat_member"],
+        )
 
     chats: dict[int, tuple[str, str]] = {}
     for update in updates:
