@@ -20,7 +20,18 @@ def render_market_card(post: dict[str, Any], draft_id: str, variant: str = "defa
         "[Volatile]": "Высокая волатильность",
     }.get(post.get("market_direction"), "На радаре")
     variant_number = int(variant) if variant.isdigit() else 0
-    template_name = "market_card_variant.html" if variant_number else "market_card.html"
+    variant_templates = (
+        "market_card_chart.html",
+        "market_card_partnership.html",
+        "market_card_ranking.html",
+        "market_card_ecosystem.html",
+        "market_card_variant.html",
+    )
+    template_name = (
+        variant_templates[(variant_number - 1) % len(variant_templates)]
+        if variant_number
+        else "market_card.html"
+    )
     hue = ((variant_number * 0.173) % 1.0) if variant_number else 0.6
 
     def color(lightness: float, saturation: float = 0.72) -> str:
