@@ -49,6 +49,8 @@ async def discover_chats() -> None:
 async def check_publish_target() -> None:
     settings.require("telegram_bot_token", "telegram_channel_id")
     async with Bot(settings.telegram_bot_token) as bot:
+        identity = await bot.get_me()
+        print(f"Bot identity: username=@{identity.username} id={identity.id}")
         chat = await bot.get_chat(settings.telegram_channel_id)
     print(f"Publish target: type={chat.type} title={chat.title or chat.username!r} id={chat.id}")
 
