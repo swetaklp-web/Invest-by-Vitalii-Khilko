@@ -109,6 +109,7 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         from app.telegram.bot import review_keyboard
 
         main_message_id = int(photo_message_id)
+        main_keyboard = review_keyboard(post_type, main_message_id)
         try:
             main_message = await bot.edit_message_media(
                 chat_id=settings.telegram_review_chat_id,
@@ -118,11 +119,16 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
                     caption=query.message.caption_html or "",
                     parse_mode="HTML",
                 ),
-                reply_markup=review_keyboard(post_type, main_message_id),
+            )
+            # Telegram may drop inline buttons when media is replaced.
+            await bot.edit_message_reply_markup(
+                chat_id=settings.telegram_review_chat_id,
+                message_id=main_message_id,
+                reply_markup=main_keyboard,
             )
         except TelegramError as error:
             await query.message.reply_text(
-                "Не удалось заменить картинку в основном черновике. "
+                "Не удалось полностью обновить основной черновик и восстановить кнопки. "
                 f"Предпросмотр оставлен на месте. Ошибка: {error}"
             )
             raise
