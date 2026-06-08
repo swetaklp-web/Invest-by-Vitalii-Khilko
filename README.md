@@ -178,15 +178,21 @@ Workflow `process_telegram_callbacks.yml` проверяет нажатия кн
 
 ## 8. Расширение источников
 
-- **X/Twitter:** реализовать `app/sources/x_reader.py`, читать `X_API_KEY` только
-  из окружения вместе с другими `X_*` доступами и нормализовать сигналы.
-- **Telegram:** реализовать `app/sources/telegram_reader.py` через Telethon/MTProto
-  с `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION_STRING`. Bot API
-  оставлять только для отправки и публикации.
-- **Yahoo Finance:** добавить сбор данных в `yahoo.py`; при необходимости
-  использовать `YAHOO_FINANCE_API_KEY`.
-- **Barchart:** использовать `BARCHART_API_KEY` в `barchart.py`.
-- **Oninvest:** использовать `ONINVEST_API_KEY` в отдельном адаптере.
+- **X/Twitter:** адаптер читает приоритетные аккаунты через X API v2. Нужен
+  рабочий `X_BEARER_TOKEN` с доступом к чтению пользователей и постов.
+- **Telegram:** адаптер читает `krasilnikovbroker` и `utexplatform` через
+  Telethon/MTProto. Получите `TELEGRAM_API_ID` и `TELEGRAM_API_HASH` на
+  `https://my.telegram.org/apps`, добавьте их локально в `.env`, затем один раз
+  запустите `python scripts/telegram_string_session.py`. После подтверждения
+  входа добавьте выведенный `TELEGRAM_SESSION_STRING` в GitHub Secrets. Никогда
+  не публикуйте session string и не сохраняйте его в репозитории.
+- **Yahoo Finance:** адаптер автоматически собирает свежие новости и рыночный
+  snapshot. Отдельный ключ сейчас не требуется.
+- **Barchart:** адаптер получает котировки watchlist через Barchart OnDemand.
+  Нужен действующий `BARCHART_API_KEY` с доступом к `getQuote`.
+- **Oninvest:** источник остаётся отключённым до получения официальной
+  документации API и `ONINVEST_API_KEY`. HTML-скрейпинг сайта намеренно не
+  используется как ненадёжный источник.
 
 Каждый сигнал должен содержать источник, суть, тикеры/секторы, воздействие,
 силу, горизонт, дату и тип катализатора. Перед подключением источника проверьте
