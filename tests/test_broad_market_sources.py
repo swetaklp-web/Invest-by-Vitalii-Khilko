@@ -12,3 +12,9 @@ def test_barchart_watchlist_is_not_technology_only() -> None:
     required = {"XLF", "XLV", "XLE", "XLI", "XLY", "XLU", "XLRE", "XLB", "IWM"}
 
     assert required.issubset(set(barchart.WATCHLIST))
+
+
+def test_yahoo_sector_discovery_covers_all_major_sector_etfs() -> None:
+    required = {"XLF", "XLV", "XLE", "XLI", "XLY", "XLP", "XLU", "XLRE", "XLB", "XLK", "XLC"}
+
+    assert required.issubset(set(yahoo.SECTOR_DISCOVERY_SYMBOLS))

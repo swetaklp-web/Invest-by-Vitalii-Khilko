@@ -25,6 +25,10 @@ DISCOVERY_QUERIES = (
     "technology semiconductor stocks",
     "small cap stocks",
 )
+SECTOR_DISCOVERY_SYMBOLS = (
+    "DIA", "IWM",
+    "XLF", "XLV", "XLE", "XLI", "XLY", "XLP", "XLU", "XLRE", "XLB", "XLK", "XLC",
+)
 MARKET_SYMBOLS = {
     "^GSPC": "S&P 500",
     "^IXIC": "Nasdaq Composite",
@@ -67,8 +71,12 @@ def _provider_date(item: dict) -> str:
 def fetch_yahoo_signals() -> list[dict]:
     signals: list[dict] = []
     seen_urls: set[str] = set()
-    for discovery_query in DISCOVERY_QUERIES:
-        query = urlencode({"q": discovery_query, "quotesCount": 0, "newsCount": 5})
+    discovery_targets = [(query, query) for query in DISCOVERY_QUERIES]
+    discovery_targets.extend(
+        (symbol, f"sector discovery via {symbol}") for symbol in SECTOR_DISCOVERY_SYMBOLS
+    )
+    for search_query, discovery_query in discovery_targets:
+        query = urlencode({"q": search_query, "quotesCount": 0, "newsCount": 5})
         payload = _get_json(f"https://query1.finance.yahoo.com/v1/finance/search?{query}")
         for item in payload.get("news", [])[:5]:
             url = item.get("link", "")
