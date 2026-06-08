@@ -7,12 +7,12 @@ from app.config import settings
 from app.storage.logs import write_log
 from app.telegram.bot import run_bot, send_review_draft
 from app.telegram.callbacks import process_callbacks_once
-from app.workflow import build_draft
+from app.workflow import FreshSourceDataUnavailable, build_draft
 from app.sources.barchart import fetch_barchart_signals
 from app.sources.oninvest import fetch_oninvest_signals
 from app.sources.telegram_reader import fetch_telegram_signals
 from app.sources.x_reader import fetch_x_signals
-from app.sources.yahoo import fetch_yahoo_signals
+from app.sources.yahoo import fetch_yahoo_market_snapshot, fetch_yahoo_signals
 
 
 async def generate_and_send(post_type: str) -> None:
@@ -21,6 +21,17 @@ async def generate_and_send(post_type: str) -> None:
         draft = await asyncio.to_thread(build_draft, post_type)  # type: ignore[arg-type]
         async with Bot(settings.telegram_bot_token) as bot:
             await send_review_draft(bot, draft)
+    except FreshSourceDataUnavailable as error:
+        write_log({"post_type": post_type, "status": "fresh_data_unavailable", "error": str(error)})
+        async with Bot(settings.telegram_bot_token) as bot:
+            await bot.send_message(
+                chat_id=settings.telegram_review_chat_id,
+                text=(
+                    "⚠️ Черновик не создан: на текущую дату не найдено достаточно "
+                    "свежих подтверждённых сигналов из разрешённых источников. "
+                    "Система остановила генерацию, чтобы не публиковать недостоверную новость."
+                ),
+            )
     except Exception as error:
         write_log({"post_type": post_type, "status": "error", "error": str(error)})
         raise
@@ -81,6 +92,11 @@ def source_health() -> None:
             print(f"- {name}: ok, signals={len(signals)}")
         except Exception as error:
             print(f"- {name}: unavailable, fallback=manual_inputs, error={error}")
+    try:
+        snapshot = fetch_yahoo_market_snapshot()
+        print(f"- yahoo_market_snapshot: ok, quotes={len(snapshot['quotes'])}")
+    except Exception as error:
+        print(f"- yahoo_market_snapshot: unavailable, error={error}")
 
 
 def main() -> None:

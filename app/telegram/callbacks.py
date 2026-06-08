@@ -65,10 +65,17 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("Ищу другую новость и готовлю новый сюжет…")
         from app.telegram.bot import send_review_draft
-        from app.workflow import build_draft
+        from app.workflow import FreshSourceDataUnavailable, build_draft
 
         previous_post = {"post_type": post_type, "telegram_text": query.message.caption_html or ""}
-        new_draft = await asyncio.to_thread(build_draft, post_type, "different_news", previous_post)
+        try:
+            new_draft = await asyncio.to_thread(build_draft, post_type, "different_news", previous_post)
+        except FreshSourceDataUnavailable:
+            await query.message.reply_text(
+                "⚠️ Другой подтверждённой новости на текущую дату не найдено. "
+                "Новый сюжет не создан, чтобы не добавлять недостоверные факты."
+            )
+            return
         await send_review_draft(bot, new_draft)
         status = "different_news"
         extra = {}
