@@ -32,6 +32,7 @@ jobs:
             });
             const cutoff = new Date(current.data.created_at);
             cutoff.setUTCHours(7, 0, 0, 0);
+            const currentCreatedAt = new Date(current.data.created_at);
             const runs = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -40,7 +41,8 @@ jobs:
               per_page: 20,
             });
             const duplicate = runs.data.workflow_runs.some((run) => {
-              if (run.id === currentRunId || new Date(run.created_at) < cutoff) return false;
+              const createdAt = new Date(run.created_at);
+              if (run.id === currentRunId || createdAt < cutoff || createdAt >= currentCreatedAt) return false;
               return ['queued', 'in_progress'].includes(run.status) || run.conclusion === 'success';
             });
             core.setOutput('proceed', duplicate ? 'false' : 'true');
