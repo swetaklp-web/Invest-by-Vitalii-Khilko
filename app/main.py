@@ -9,6 +9,7 @@ from app.telegram.bot import run_bot, send_review_draft
 from app.telegram.callbacks import process_callbacks_once
 from app.workflow import FreshSourceDataUnavailable, build_draft
 from app.sources.barchart import fetch_barchart_signals
+from app.sources.freshness import filter_fresh_signals, today_moscow
 from app.sources.oninvest import fetch_oninvest_signals
 from app.sources.telegram_reader import fetch_telegram_signals
 from app.sources.x_reader import fetch_x_signals
@@ -89,7 +90,8 @@ def source_health() -> None:
     ):
         try:
             signals = fetcher()
-            print(f"- {name}: ok, signals={len(signals)}")
+            fresh, stale = filter_fresh_signals(signals, today_moscow())
+            print(f"- {name}: ok, fresh_signals={len(fresh)}, stale_or_undated={len(stale)}")
         except Exception as error:
             print(f"- {name}: unavailable, fallback=manual_inputs, error={error}")
     try:

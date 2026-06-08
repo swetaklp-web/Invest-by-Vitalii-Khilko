@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
@@ -57,20 +57,36 @@ def fetch_yahoo_signals() -> list[dict]:
 
 
 def fetch_yahoo_market_snapshot() -> dict:
-    symbols = ",".join(MARKET_SYMBOLS)
-    payload = _get_json(f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbols}")
     quotes = []
-    for quote in payload.get("quoteResponse", {}).get("result", []):
-        symbol = quote.get("symbol", "")
+    for symbol, name in MARKET_SYMBOLS.items():
+        encoded_symbol = quote(symbol, safe="")
+        try:
+            payload = _get_json(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{encoded_symbol}"
+                "?range=1d&interval=5m"
+            )
+        except Exception:
+            continue
+        result = payload.get("chart", {}).get("result", [])
+        if not result:
+            continue
+        meta = result[0].get("meta", {})
+        price = meta.get("regularMarketPrice")
+        previous_close = meta.get("chartPreviousClose") or meta.get("previousClose")
+        change_percent = None
+        if price is not None and previous_close:
+            change_percent = (float(price) - float(previous_close)) / float(previous_close) * 100
         quotes.append(
             {
                 "symbol": symbol,
-                "name": MARKET_SYMBOLS.get(symbol, quote.get("shortName") or symbol),
-                "price": quote.get("regularMarketPrice"),
-                "change_percent": quote.get("regularMarketChangePercent"),
-                "market_state": quote.get("marketState"),
+                "name": name,
+                "price": price,
+                "change_percent": change_percent,
+                "market_state": meta.get("marketState"),
                 "source": "Yahoo Finance quote",
                 "date": datetime.now(ZoneInfo("Europe/Moscow")).date().isoformat(),
             }
         )
+    if not quotes:
+        raise RuntimeError("Yahoo Finance market snapshot returned no quotes")
     return {"date": datetime.now(ZoneInfo("Europe/Moscow")).date().isoformat(), "quotes": quotes}
