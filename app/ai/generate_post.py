@@ -22,7 +22,7 @@ def _prompt(name: str) -> str:
 def generate_post(
     inputs: dict[str, Any],
     post_type: Literal["morning_brief", "evening_theme"],
-    revision: Literal["shorter", "deeper"] | None = None,
+    revision: Literal["shorter", "deeper", "different_news"] | None = None,
     previous_post: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     settings.require("openai_api_key")
@@ -31,6 +31,12 @@ def generate_post(
         None: "",
         "shorter": "Переделай предыдущую версию короче, сохранив главную аналитику.",
         "deeper": "Переделай предыдущую версию глубже: усили цепочку влияния и риски.",
+        "different_news": (
+            "Создай пост на основе совершенно другой новости или рыночного сигнала. "
+            "Не редактируй и не пересказывай предыдущий пост. Выбери другой главный сюжет, "
+            "другой катализатор и по возможности другие тикеры. Если среди входных сигналов "
+            "есть несколько тем, обязательно используй тему, не связанную с previous_post."
+        ),
     }[revision]
     schema = {
         "post_type": post_type,

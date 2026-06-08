@@ -5,12 +5,13 @@ def button_labels(markup) -> list[str]:
     return [button.text for row in markup.inline_keyboard for button in row]
 
 
-def test_review_keyboard_has_four_actions() -> None:
+def test_review_keyboard_has_all_review_actions() -> None:
     assert button_labels(review_keyboard("morning_brief", 123)) == [
         "✅ Опубликовать",
         "🔁 Новый вариант текста",
         "🖼 Новый вариант картинки",
         "❌ Отклонить",
+        "📰 Другая новость",
     ]
 
 

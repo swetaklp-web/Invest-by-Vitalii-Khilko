@@ -68,7 +68,7 @@ def load_source_inputs(post_type: str) -> dict:
 
 def build_draft(
     post_type: Literal["morning_brief", "evening_theme"],
-    revision: Literal["shorter", "deeper"] | None = None,
+    revision: Literal["shorter", "deeper", "different_news"] | None = None,
     previous_post: dict | None = None,
 ) -> dict:
     inputs = load_source_inputs(post_type)

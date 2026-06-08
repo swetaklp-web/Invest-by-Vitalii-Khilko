@@ -21,6 +21,7 @@ def review_keyboard(post_type: str, message_id: int) -> InlineKeyboardMarkup:
                 InlineKeyboardButton("🖼 Новый вариант картинки", callback_data=f"image:{suffix}:1"),
                 InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{suffix}"),
             ],
+            [InlineKeyboardButton("📰 Другая новость", callback_data=f"other_news:{suffix}")],
         ]
     )
 

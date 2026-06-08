@@ -10,4 +10,5 @@ def test_restored_main_keyboard_contains_publish_action() -> None:
     ]
 
     assert "publish:morning_brief:321" in callback_data
-    assert len(callback_data) == 4
+    assert "other_news:morning_brief:321" in callback_data
+    assert len(callback_data) == 5
