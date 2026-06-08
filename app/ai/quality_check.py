@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from typing import Any
 from urllib.parse import urlparse
@@ -35,7 +37,7 @@ def _approved_source_url(url: str) -> bool:
     return hostname in APPROVED_SOURCE_DOMAINS
 
 
-def check_post(post: dict[str, Any]) -> dict[str, Any]:
+def check_post(post: dict[str, Any], allowed_source_urls: set[str] | None = None) -> dict[str, Any]:
     text = str(post.get("telegram_text", ""))
     lowered = text.lower()
     issues: list[str] = []
@@ -73,6 +75,10 @@ def check_post(post: dict[str, Any]) -> dict[str, Any]:
         issues.append("one or more sources have no URL")
     elif any(not _approved_source_url(str(source.get("url"))) for source in sources):
         issues.append("one or more sources are outside the approved source list")
+    elif allowed_source_urls is not None and any(
+        str(source.get("url")) not in allowed_source_urls for source in sources
+    ):
+        issues.append("one or more sources were not present in the fresh input data")
 
     risk_flags = list(post.get("risk_flags") or [])
     return {

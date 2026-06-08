@@ -43,3 +43,11 @@ def test_caption_over_1000_characters_fails() -> None:
     post = base_post()
     post["telegram_text"] = "$NVDA " + ("а" * 1000)
     assert check_post(post)["passed"] is False
+
+
+def test_source_url_must_exist_in_fresh_input_data() -> None:
+    post = base_post()
+    result = check_post(post, {"https://www.barchart.com/"})
+
+    assert result["passed"] is False
+    assert "fresh input data" in result["issues"][-1]

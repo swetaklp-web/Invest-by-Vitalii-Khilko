@@ -119,7 +119,14 @@ def build_draft(
             f"No verified fresh signals for {inputs.get('date')}; draft generation stopped"
         )
     post = generate_post(inputs, post_type, revision, previous_post)
-    quality = check_post(post)
+    allowed_source_urls = {
+        str(signal.get("url"))
+        for signal in inputs.get("signals", [])
+        if signal.get("url")
+    }
+    if inputs.get("market_snapshot", {}).get("quotes"):
+        allowed_source_urls.add("https://finance.yahoo.com/")
+    quality = check_post(post, allowed_source_urls)
     temporary_id = uuid4().hex[:12]
     image_path = render_market_card(post, temporary_id)
     draft = create_draft(post, quality, image_path)
