@@ -30,7 +30,14 @@ OPTIONAL_ENV_VARS = (
 
 
 def _env(name: str, default: str = ""):
-    return field(default_factory=lambda: os.getenv(name, default).strip())
+    def load() -> str:
+        value = os.getenv(name, default).strip()
+        prefix = f"{name}="
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+        return value
+
+    return field(default_factory=load)
 
 
 def _credential(name: str):
