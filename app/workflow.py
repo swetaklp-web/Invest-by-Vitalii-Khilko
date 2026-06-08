@@ -104,6 +104,21 @@ def load_source_inputs(post_type: str) -> dict:
             )
     inputs["source_quality"]["fresh_signals_count"] = len(inputs["signals"])
     inputs["source_quality"]["stale_external_signals_dropped"] = stale_external_count
+    inputs["source_quality"]["discovery_topics"] = sorted(
+        {
+            str(signal.get("discovery_query"))
+            for signal in inputs["signals"]
+            if signal.get("discovery_query")
+        }
+    )
+    inputs["source_quality"]["covered_tickers"] = sorted(
+        {
+            str(ticker)
+            for signal in inputs["signals"]
+            for ticker in signal.get("tickers", [])
+            if ticker
+        }
+    )
     inputs["source_mode"] = "fresh_sources" if inputs["signals"] else "market_snapshot_only"
     return inputs
 

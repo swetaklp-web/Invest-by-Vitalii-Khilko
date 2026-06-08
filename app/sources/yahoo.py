@@ -7,7 +7,24 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 
-WATCHLIST = ("SPY", "QQQ", "NVDA", "AMD", "TSLA", "AAPL", "MSFT")
+DISCOVERY_QUERIES = (
+    "US stock market",
+    "Federal Reserve interest rates Treasury yields",
+    "US inflation jobs economy",
+    "earnings stocks",
+    "mergers acquisitions stocks",
+    "insider trading stocks",
+    "options market stocks",
+    "bank financial stocks",
+    "healthcare biotech stocks",
+    "energy oil stocks",
+    "industrial aerospace defense stocks",
+    "consumer retail stocks",
+    "materials mining gold stocks",
+    "real estate utilities stocks",
+    "technology semiconductor stocks",
+    "small cap stocks",
+)
 MARKET_SYMBOLS = {
     "^GSPC": "S&P 500",
     "^IXIC": "Nasdaq Composite",
@@ -18,6 +35,19 @@ MARKET_SYMBOLS = {
     "DX-Y.NYB": "US Dollar Index",
     "CL=F": "WTI oil",
     "GC=F": "Gold",
+    "BTC-USD": "Bitcoin",
+    "IWM": "Russell 2000 ETF",
+    "XLF": "Financials sector ETF",
+    "XLV": "Health Care sector ETF",
+    "XLE": "Energy sector ETF",
+    "XLI": "Industrials sector ETF",
+    "XLY": "Consumer Discretionary sector ETF",
+    "XLP": "Consumer Staples sector ETF",
+    "XLU": "Utilities sector ETF",
+    "XLRE": "Real Estate sector ETF",
+    "XLB": "Materials sector ETF",
+    "XLK": "Technology sector ETF",
+    "XLC": "Communication Services sector ETF",
 }
 
 
@@ -36,21 +66,32 @@ def _provider_date(item: dict) -> str:
 
 def fetch_yahoo_signals() -> list[dict]:
     signals: list[dict] = []
-    for ticker in WATCHLIST:
-        query = urlencode({"q": ticker, "quotesCount": 1, "newsCount": 2})
+    seen_urls: set[str] = set()
+    for discovery_query in DISCOVERY_QUERIES:
+        query = urlencode({"q": discovery_query, "quotesCount": 0, "newsCount": 5})
         payload = _get_json(f"https://query1.finance.yahoo.com/v1/finance/search?{query}")
-        for item in payload.get("news", [])[:2]:
+        for item in payload.get("news", [])[:5]:
+            url = item.get("link", "")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            tickers = [
+                ticker
+                for ticker in item.get("relatedTickers", [])
+                if isinstance(ticker, str) and ticker and not ticker.startswith("^")
+            ][:10]
             signals.append(
                 {
                     "source": "Yahoo Finance",
-                    "url": item.get("link", ""),
+                    "url": url,
                     "summary": f"{item.get('publisher', 'Yahoo Finance')}: {item.get('title', '')}",
-                    "tickers": [ticker],
+                    "tickers": tickers,
                     "impact": "[Watch]",
                     "strength": "low",
                     "horizon": "short",
                     "catalyst_type": "event",
                     "date": _provider_date(item),
+                    "discovery_query": discovery_query,
                 }
             )
     return signals

@@ -8,7 +8,16 @@ from app.config import settings
 from app.sources.freshness import today_moscow
 
 
-WATCHLIST = ("SPY", "QQQ", "NVDA", "AMD", "TSLA", "AAPL", "MSFT", "META", "GOOGL", "AMZN")
+WATCHLIST = (
+    "SPY", "QQQ", "IWM", "DIA",
+    "XLK", "XLF", "XLV", "XLE", "XLI", "XLY", "XLP", "XLU", "XLRE", "XLB", "XLC",
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA",
+    "JPM", "BAC", "GS", "V", "BRK.B",
+    "LLY", "UNH", "JNJ", "PFE",
+    "XOM", "CVX", "COP",
+    "WMT", "COST", "HD", "MCD",
+    "CAT", "GE", "BA", "RTX", "LMT",
+)
 
 
 def fetch_barchart_signals() -> list[dict]:
