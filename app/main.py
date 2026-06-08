@@ -8,6 +8,11 @@ from app.storage.logs import write_log
 from app.telegram.bot import run_bot, send_review_draft
 from app.telegram.callbacks import process_callbacks_once
 from app.workflow import build_draft
+from app.sources.barchart import fetch_barchart_signals
+from app.sources.oninvest import fetch_oninvest_signals
+from app.sources.telegram_reader import fetch_telegram_signals
+from app.sources.x_reader import fetch_x_signals
+from app.sources.yahoo import fetch_yahoo_signals
 
 
 async def generate_and_send(post_type: str) -> None:
@@ -62,6 +67,22 @@ async def process_callbacks() -> None:
     print(f"Processed callback queries: {processed}")
 
 
+def source_health() -> None:
+    print("Source health report:")
+    for name, fetcher in (
+        ("x", fetch_x_signals),
+        ("yahoo", fetch_yahoo_signals),
+        ("barchart", fetch_barchart_signals),
+        ("telegram", fetch_telegram_signals),
+        ("oninvest", fetch_oninvest_signals),
+    ):
+        try:
+            signals = fetcher()
+            print(f"- {name}: ok, signals={len(signals)}")
+        except Exception as error:
+            print(f"- {name}: unavailable, fallback=manual_inputs, error={error}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Invest by Vitalii Khilko automation")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -71,6 +92,7 @@ def main() -> None:
     subparsers.add_parser("discover-chats", help="List recent Telegram chat IDs")
     subparsers.add_parser("check-publish-target", help="Validate Telegram publish target")
     subparsers.add_parser("process-callbacks", help="Process pending Telegram buttons once")
+    subparsers.add_parser("source-health", help="Check external source availability")
     args = parser.parse_args()
 
     if args.command == "bot":
@@ -81,6 +103,8 @@ def main() -> None:
         asyncio.run(check_publish_target())
     elif args.command == "process-callbacks":
         asyncio.run(process_callbacks())
+    elif args.command == "source-health":
+        source_health()
     else:
         asyncio.run(generate_and_send(args.type))
 

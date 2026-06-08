@@ -7,12 +7,19 @@ from app.ai.generate_post import generate_post
 from app.ai.quality_check import check_post
 from app.config import settings
 from app.design.render_image import render_market_card
+from app.sources.barchart import fetch_barchart_signals
 from app.sources.manual_inputs import load_manual_inputs
+from app.sources.oninvest import fetch_oninvest_signals
+from app.sources.telegram_reader import fetch_telegram_signals
+from app.sources.x_reader import fetch_x_signals
+from app.sources.yahoo import fetch_yahoo_signals
 from app.storage.drafts import create_draft
 from app.storage.logs import write_log
 
 
 def load_source_inputs(post_type: str) -> dict:
+    inputs = load_manual_inputs()
+    inputs.setdefault("signals", [])
     missing_optional = settings.missing_optional_env_vars()
     if missing_optional:
         write_log(
@@ -24,7 +31,39 @@ def load_source_inputs(post_type: str) -> dict:
                 "source_mode": "manual_inputs",
             }
         )
-    return load_manual_inputs()
+    adapters = (
+        ("x", fetch_x_signals),
+        ("yahoo", fetch_yahoo_signals),
+        ("barchart", fetch_barchart_signals),
+        ("telegram", fetch_telegram_signals),
+        ("oninvest", fetch_oninvest_signals),
+    )
+    external_count = 0
+    for source_name, fetcher in adapters:
+        try:
+            signals = fetcher()
+            inputs["signals"].extend(signals)
+            external_count += len(signals)
+            write_log(
+                {
+                    "post_type": post_type,
+                    "status": "source_checked",
+                    "source": source_name,
+                    "signals_found": len(signals),
+                }
+            )
+        except Exception as error:
+            write_log(
+                {
+                    "post_type": post_type,
+                    "status": "source_warning",
+                    "source": source_name,
+                    "error": str(error),
+                    "fallback": "manual_inputs",
+                }
+            )
+    inputs["source_mode"] = "hybrid" if external_count else "manual_inputs"
+    return inputs
 
 
 def build_draft(
