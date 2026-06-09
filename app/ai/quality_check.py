@@ -37,7 +37,11 @@ def _approved_source_url(url: str) -> bool:
     return hostname in APPROVED_SOURCE_DOMAINS
 
 
-def check_post(post: dict[str, Any], allowed_source_urls: set[str] | None = None) -> dict[str, Any]:
+def check_post(
+    post: dict[str, Any],
+    allowed_source_urls: set[str] | None = None,
+    fact_check: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     text = str(post.get("telegram_text", ""))
     lowered = text.lower()
     issues: list[str] = []
@@ -81,11 +85,20 @@ def check_post(post: dict[str, Any], allowed_source_urls: set[str] | None = None
         str(source.get("url")) not in allowed_source_urls for source in sources
     ):
         issues.append("one or more sources were not present in the fresh input data")
+    technical_passed = not issues
+    if fact_check is not None and not fact_check.get("passed"):
+        issues.append("one or more factual claims are not supported by fresh source evidence")
 
     risk_flags = list(post.get("risk_flags") or [])
     return {
         "passed": not issues,
+        "technical_passed": technical_passed,
         "issues": issues,
         "risk_flags": risk_flags,
         "requires_manual_review": bool(issues or risk_flags),
+        "fact_check": fact_check or {
+            "passed": False,
+            "unsupported_claims": [],
+            "notes": ["Fact-check was not performed"],
+        },
     }

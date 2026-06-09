@@ -21,3 +21,9 @@ def test_image_review_keyboard_accepts_retries_or_rejects_variant() -> None:
         "🖼 Ещё вариант",
         "❌ Отклонить картинку",
     ]
+
+
+def test_review_keyboard_blocks_publish_when_fact_check_fails() -> None:
+    labels = button_labels(review_keyboard("evening_theme", 123, publish_allowed=False))
+
+    assert labels[0] == "⛔ Факты не подтверждены"

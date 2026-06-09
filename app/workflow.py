@@ -6,6 +6,7 @@ from typing import Literal
 from uuid import uuid4
 
 from app.ai.generate_post import generate_post
+from app.ai.fact_check import verify_post_grounding
 from app.ai.quality_check import check_post
 from app.config import settings
 from app.design.render_image import render_market_card
@@ -177,7 +178,12 @@ def build_draft(
     }
     if inputs.get("market_snapshot", {}).get("quotes"):
         allowed_source_urls.add("https://finance.yahoo.com/")
-    quality = check_post(post, allowed_source_urls)
+    fact_check = verify_post_grounding(post, inputs)
+    fact_check["fresh_signals_checked"] = len(inputs.get("signals", []))
+    fact_check["market_quotes_checked"] = len(
+        inputs.get("market_snapshot", {}).get("quotes", [])
+    )
+    quality = check_post(post, allowed_source_urls, fact_check)
     temporary_id = uuid4().hex[:12]
     image_path = render_market_card(post, temporary_id)
     draft = create_draft(post, quality, image_path)

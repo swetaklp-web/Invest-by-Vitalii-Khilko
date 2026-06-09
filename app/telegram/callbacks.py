@@ -86,12 +86,15 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         return
 
     parts = query.data.split(":")
-    if len(parts) not in {3, 4}:
+    if len(parts) not in {3, 4, 5}:
         await answer_callback_safely(query, "Это кнопка старого черновика. Создайте новый.", True)
         await query.edit_message_reply_markup(reply_markup=None)
         return
     action, post_type, photo_message_id = parts[:3]
     variant_number = int(parts[3]) if len(parts) == 4 and parts[3].isdigit() else 1
+    if len(parts) >= 4 and parts[3].isdigit():
+        variant_number = int(parts[3])
+    publish_allowed = not (len(parts) == 5 and parts[4] == "0")
     await answer_callback_safely(query, "Команда принята")
 
     if action == "publish":
@@ -111,6 +114,12 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         await query.message.reply_text("✅ Опубликовано в основном канале.")
         status = "published"
         extra = {"channel_message_ids": [published.message_id]}
+    elif action == "blocked_publish":
+        await query.message.reply_text(
+            "⛔ Публикация заблокирована: проверка фактов по свежим источникам не пройдена. "
+            "Создайте другую новость или новую редакцию."
+        )
+        return
     elif action == "reject":
         await query.edit_message_reply_markup(reply_markup=None)
         await query.message.reply_text("❌ Черновик отклонён.")
@@ -168,7 +177,9 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
                     photo=image,
                     caption=clean_caption,
                     parse_mode="HTML",
-                    reply_markup=image_review_keyboard(post_type, main_message_id, variant_number),
+                    reply_markup=image_review_keyboard(
+                        post_type, main_message_id, variant_number, publish_allowed
+                    ),
                 )
             else:
                 await bot.edit_message_media(
@@ -179,7 +190,9 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
                         caption=clean_caption,
                         parse_mode="HTML",
                     ),
-                    reply_markup=image_review_keyboard(post_type, main_message_id, variant_number),
+                    reply_markup=image_review_keyboard(
+                        post_type, main_message_id, variant_number, publish_allowed
+                    ),
                 )
                 photo = query.message
         status = "image_variant"
@@ -191,7 +204,7 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         from app.telegram.bot import review_keyboard
 
         main_message_id = int(photo_message_id)
-        main_keyboard = review_keyboard(post_type, main_message_id)
+        main_keyboard = review_keyboard(post_type, main_message_id, publish_allowed)
         clean_caption = sanitize_telegram_html(query.message.caption_html or "")
         try:
             main_message = await bot.edit_message_media(

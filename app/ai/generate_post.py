@@ -119,5 +119,12 @@ def generate_post(
         ],
     )
     post = json.loads(response.choices[0].message.content or "{}")
+    post["post_type"] = post_type
+    post["title"] = (
+        "Что важно перед открытием США"
+        if post_type == "morning_brief"
+        else "Главная тема дня на рынке"
+    )
+    post["date"] = user_payload["current_date"]
     post["telegram_text"] = sanitize_telegram_html(str(post.get("telegram_text", "")))
     return post

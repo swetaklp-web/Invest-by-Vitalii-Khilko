@@ -10,16 +10,25 @@ from app.telegram.callbacks import handle_callback
 from app.telegram.formatting import sanitize_telegram_html
 
 
-def review_keyboard(post_type: str, message_id: int) -> InlineKeyboardMarkup:
+def review_keyboard(
+    post_type: str, message_id: int, publish_allowed: bool = True
+) -> InlineKeyboardMarkup:
     suffix = f"{post_type}:{message_id}"
+    publish_button = InlineKeyboardButton(
+        "✅ Опубликовать" if publish_allowed else "⛔ Факты не подтверждены",
+        callback_data=f"{'publish' if publish_allowed else 'blocked_publish'}:{suffix}",
+    )
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("✅ Опубликовать", callback_data=f"publish:{suffix}"),
+                publish_button,
                 InlineKeyboardButton("🔁 Новый вариант текста", callback_data=f"rewrite:{suffix}"),
             ],
             [
-                InlineKeyboardButton("🖼 Новый вариант картинки", callback_data=f"image:{suffix}:1"),
+                InlineKeyboardButton(
+                    "🖼 Новый вариант картинки",
+                    callback_data=f"image:{suffix}:1:{1 if publish_allowed else 0}",
+                ),
                 InlineKeyboardButton("❌ Отклонить", callback_data=f"reject:{suffix}"),
             ],
             [InlineKeyboardButton("📰 Другая новость", callback_data=f"other_news:{suffix}")],
@@ -27,15 +36,32 @@ def review_keyboard(post_type: str, message_id: int) -> InlineKeyboardMarkup:
     )
 
 
-def image_review_keyboard(post_type: str, main_message_id: int, variant_number: int) -> InlineKeyboardMarkup:
+def image_review_keyboard(
+    post_type: str,
+    main_message_id: int,
+    variant_number: int,
+    publish_allowed: bool = True,
+) -> InlineKeyboardMarkup:
     suffix = f"{post_type}:{main_message_id}"
+    publish_flag = 1 if publish_allowed else 0
     return InlineKeyboardMarkup(
         [
             [
-                InlineKeyboardButton("✅ Принять картинку", callback_data=f"accept_image:{suffix}"),
-                InlineKeyboardButton("🖼 Ещё вариант", callback_data=f"image:{suffix}:{variant_number + 1}"),
+                InlineKeyboardButton(
+                    "✅ Принять картинку",
+                    callback_data=f"accept_image:{suffix}:1:{publish_flag}",
+                ),
+                InlineKeyboardButton(
+                    "🖼 Ещё вариант",
+                    callback_data=f"image:{suffix}:{variant_number + 1}:{publish_flag}",
+                ),
             ],
-            [InlineKeyboardButton("❌ Отклонить картинку", callback_data=f"reject_image:{suffix}")],
+            [
+                InlineKeyboardButton(
+                    "❌ Отклонить картинку",
+                    callback_data=f"reject_image:{suffix}:1:{publish_flag}",
+                )
+            ],
         ]
     )
 
@@ -44,15 +70,32 @@ def service_block(draft: dict) -> str:
     quality = draft["quality"]
     issues = "\n".join(f"• {item}" for item in quality["issues"]) or "• нет"
     risks = "\n".join(f"• {item}" for item in quality["risk_flags"]) or "• нет"
+    fact_check = quality.get("fact_check", {})
+    unsupported = (
+        "\n".join(f"• {item}" for item in fact_check.get("unsupported_claims", []))
+        or "• нет"
+    )
+    fact_status = "ПРОЙДЕНА" if fact_check.get("passed") else "НЕ ПРОЙДЕНА"
     return (
         f"\n\n———\nСлужебный блок\n"
-        f"Draft ID: {draft['id']}\nQuality passed: {quality['passed']}\n"
-        f"Проблемы:\n{issues}\nRisk flags:\n{risks}"
+        f"Draft ID: {draft['id']}\n"
+        f"Техническая проверка: "
+        f"{'ПРОЙДЕНА' if quality.get('technical_passed', quality['passed']) else 'НЕ ПРОЙДЕНА'}\n"
+        f"Проверка фактов по свежим источникам: {fact_status}\n"
+        f"Проверено свежих сигналов: {fact_check.get('fresh_signals_checked', 0)}\n"
+        f"Проверено рыночных показателей: {fact_check.get('market_quotes_checked', 0)}\n"
+        f"Технические проблемы:\n{issues}\n"
+        f"Неподтверждённые утверждения:\n{unsupported}\n"
+        f"Risk flags:\n{risks}"
     )
 
 
 async def send_review_draft(bot, draft: dict) -> None:
     draft["post"]["telegram_text"] = sanitize_telegram_html(draft["post"]["telegram_text"])
+    publish_allowed = bool(
+        draft["quality"]["passed"]
+        and draft["quality"].get("fact_check", {}).get("passed")
+    )
     with Path(draft["image_path"]).open("rb") as image:
         photo_message = await bot.send_photo(
             chat_id=settings.telegram_review_chat_id,
@@ -63,7 +106,9 @@ async def send_review_draft(bot, draft: dict) -> None:
     await bot.edit_message_reply_markup(
         chat_id=settings.telegram_review_chat_id,
         message_id=photo_message.message_id,
-        reply_markup=review_keyboard(draft["post"]["post_type"], photo_message.message_id),
+        reply_markup=review_keyboard(
+            draft["post"]["post_type"], photo_message.message_id, publish_allowed
+        ),
     )
     message = await bot.send_message(
         chat_id=settings.telegram_review_chat_id,
