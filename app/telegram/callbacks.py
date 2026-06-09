@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime
 import re
@@ -12,21 +14,79 @@ from app.config import settings
 from app.storage.logs import write_log
 
 
+async def answer_callback_safely(query: CallbackQuery, text: str, show_alert: bool = False) -> None:
+    try:
+        await query.answer(text, show_alert=show_alert)
+    except TelegramError as error:
+        write_log(
+            {
+                "status": "callback_answer_warning",
+                "telegram_message_id": query.message.message_id if query.message else None,
+                "error": str(error),
+            }
+        )
+
+
+async def restore_review_keyboard(query: CallbackQuery, bot: Bot, post_type: str) -> None:
+    from app.telegram.bot import review_keyboard
+
+    await bot.edit_message_reply_markup(
+        chat_id=settings.telegram_review_chat_id,
+        message_id=query.message.message_id,
+        reply_markup=review_keyboard(post_type, query.message.message_id),
+    )
+
+
+async def generate_replacement_draft(
+    query: CallbackQuery,
+    bot: Bot,
+    post_type: str,
+    revision: str,
+    progress_message: str,
+    failure_message: str,
+) -> dict | None:
+    from app.telegram.bot import send_review_draft
+    from app.workflow import build_draft
+
+    await query.edit_message_reply_markup(reply_markup=None)
+    await query.message.reply_text(progress_message)
+    previous_post = {"post_type": post_type, "telegram_text": query.message.caption_html or ""}
+    try:
+        new_draft = await asyncio.to_thread(build_draft, post_type, revision, previous_post)
+        await send_review_draft(bot, new_draft)
+        return new_draft
+    except Exception as error:
+        await restore_review_keyboard(query, bot, post_type)
+        await query.message.reply_text(f"{failure_message}\nКнопки исходного черновика восстановлены.")
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "callback_error",
+                "action": revision,
+                "telegram_message_id": query.message.message_id,
+                "error": str(error),
+            }
+        )
+        return None
+
+
 async def handle_query(query: CallbackQuery, bot: Bot) -> None:
     if not query or not query.data or not query.message:
         return
     if str(query.message.chat_id) != str(settings.telegram_review_chat_id):
-        await query.answer("Эта кнопка доступна только в чате согласования.", show_alert=True)
+        await answer_callback_safely(
+            query, "Эта кнопка доступна только в чате согласования.", show_alert=True
+        )
         return
 
     parts = query.data.split(":")
     if len(parts) not in {3, 4}:
-        await query.answer("Это кнопка старого черновика. Создайте новый.", show_alert=True)
+        await answer_callback_safely(query, "Это кнопка старого черновика. Создайте новый.", True)
         await query.edit_message_reply_markup(reply_markup=None)
         return
     action, post_type, photo_message_id = parts[:3]
     variant_number = int(parts[3]) if len(parts) == 4 and parts[3].isdigit() else 1
-    await query.answer("Команда принята")
+    await answer_callback_safely(query, "Команда принята")
 
     if action == "publish":
         try:
@@ -51,32 +111,29 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         status = "rejected"
         extra = {}
     elif action == "rewrite":
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("Готовлю новую версию…")
-        from app.telegram.bot import send_review_draft
-        from app.workflow import build_draft
-
-        previous_post = {"post_type": post_type, "telegram_text": query.message.caption_html or ""}
-        new_draft = await asyncio.to_thread(build_draft, post_type, "shorter", previous_post)
-        await send_review_draft(bot, new_draft)
+        new_draft = await generate_replacement_draft(
+            query,
+            bot,
+            post_type,
+            "shorter",
+            "Готовлю новую версию…",
+            "⚠️ Не удалось создать новую редакцию.",
+        )
+        if new_draft is None:
+            return
         status = "revision_text"
         extra = {}
     elif action == "other_news":
-        await query.edit_message_reply_markup(reply_markup=None)
-        await query.message.reply_text("Ищу другую новость и готовлю новый сюжет…")
-        from app.telegram.bot import send_review_draft
-        from app.workflow import FreshSourceDataUnavailable, build_draft
-
-        previous_post = {"post_type": post_type, "telegram_text": query.message.caption_html or ""}
-        try:
-            new_draft = await asyncio.to_thread(build_draft, post_type, "different_news", previous_post)
-        except FreshSourceDataUnavailable:
-            await query.message.reply_text(
-                "⚠️ Другой подтверждённой новости на текущую дату не найдено. "
-                "Новый сюжет не создан, чтобы не добавлять недостоверные факты."
-            )
+        new_draft = await generate_replacement_draft(
+            query,
+            bot,
+            post_type,
+            "different_news",
+            "Ищу другую новость и готовлю новый сюжет…",
+            "⚠️ Не удалось создать другой подтверждённый сюжет на текущую дату.",
+        )
+        if new_draft is None:
             return
-        await send_review_draft(bot, new_draft)
         status = "different_news"
         extra = {}
     elif action == "image":
