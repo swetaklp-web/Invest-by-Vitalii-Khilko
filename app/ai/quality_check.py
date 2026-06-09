@@ -44,6 +44,8 @@ def check_post(post: dict[str, Any], allowed_source_urls: set[str] | None = None
 
     if not text:
         issues.append("telegram_text is empty")
+    if re.search(r"(?:<|&lt;)br\s*/?(?:>|&gt;)", text, flags=re.IGNORECASE):
+        issues.append("unsupported br tag detected")
     if len(text) > 1000:
         issues.append(f"telegram_text exceeds 1000 characters: {len(text)}")
     if not post.get("date") or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(post.get("date"))):

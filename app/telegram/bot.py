@@ -7,6 +7,7 @@ from app.config import settings
 from app.storage.drafts import save_draft
 from app.storage.logs import write_log
 from app.telegram.callbacks import handle_callback
+from app.telegram.formatting import sanitize_telegram_html
 
 
 def review_keyboard(post_type: str, message_id: int) -> InlineKeyboardMarkup:
@@ -51,6 +52,7 @@ def service_block(draft: dict) -> str:
 
 
 async def send_review_draft(bot, draft: dict) -> None:
+    draft["post"]["telegram_text"] = sanitize_telegram_html(draft["post"]["telegram_text"])
     with Path(draft["image_path"]).open("rb") as image:
         photo_message = await bot.send_photo(
             chat_id=settings.telegram_review_chat_id,

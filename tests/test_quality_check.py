@@ -51,3 +51,10 @@ def test_source_url_must_exist_in_fresh_input_data() -> None:
 
     assert result["passed"] is False
     assert "fresh input data" in result["issues"][-1]
+
+
+def test_br_tag_fails_quality_check() -> None:
+    post = base_post()
+    post["telegram_text"] = "Первый абзац.<br><br>Второй абзац."
+
+    assert "unsupported br tag detected" in check_post(post)["issues"]
