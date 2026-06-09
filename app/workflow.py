@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import time
 from typing import Literal
 from uuid import uuid4
 
@@ -20,6 +22,34 @@ from app.storage.logs import write_log
 
 class FreshSourceDataUnavailable(RuntimeError):
     pass
+
+
+def select_alternative_signals(inputs: dict, previous_post: dict | None) -> dict:
+    previous_text = str((previous_post or {}).get("telegram_text") or "")
+    previous_tickers = set(re.findall(r"\$([A-Z]{1,6})", previous_text))
+    signals = list(inputs.get("signals", []))
+    alternatives = [
+        signal
+        for signal in signals
+        if previous_tickers.isdisjoint(set(signal.get("tickers", [])))
+    ]
+    if len(alternatives) < 5:
+        alternatives = signals
+    inputs["signals"] = alternatives[:25]
+    inputs["source_quality"]["alternative_to_tickers"] = sorted(previous_tickers)
+    inputs["source_quality"]["alternative_candidates"] = len(inputs["signals"])
+    return inputs
+
+
+def load_source_inputs_with_retries(post_type: str, attempts: int = 3) -> dict:
+    last_inputs: dict = {}
+    for attempt in range(attempts):
+        last_inputs = load_source_inputs(post_type)
+        if last_inputs.get("signals"):
+            return last_inputs
+        if attempt < attempts - 1:
+            time.sleep(2)
+    return last_inputs
 
 
 def load_source_inputs(post_type: str) -> dict:
@@ -128,7 +158,13 @@ def build_draft(
     revision: Literal["shorter", "deeper", "different_news"] | None = None,
     previous_post: dict | None = None,
 ) -> dict:
-    inputs = load_source_inputs(post_type)
+    inputs = (
+        load_source_inputs_with_retries(post_type)
+        if revision == "different_news"
+        else load_source_inputs(post_type)
+    )
+    if revision == "different_news":
+        inputs = select_alternative_signals(inputs, previous_post)
     if not inputs.get("signals"):
         raise FreshSourceDataUnavailable(
             f"No verified fresh signals for {inputs.get('date')}; draft generation stopped"

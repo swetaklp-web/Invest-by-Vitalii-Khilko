@@ -57,7 +57,12 @@ async def generate_replacement_draft(
         return new_draft
     except Exception as error:
         await restore_review_keyboard(query, bot, post_type)
-        await query.message.reply_text(f"{failure_message}\nКнопки исходного черновика восстановлены.")
+        error_type = type(error).__name__
+        await query.message.reply_text(
+            f"{failure_message}\nПричина: {error_type}.\n"
+            "Кнопки исходного черновика восстановлены."
+        )
+        print(f"Callback action {revision} failed: {error_type}: {error}", flush=True)
         write_log(
             {
                 "post_type": post_type,
