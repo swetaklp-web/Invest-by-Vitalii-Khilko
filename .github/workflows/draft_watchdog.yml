@@ -74,3 +74,22 @@ jobs:
               });
               core.warning(`Recovered missing ${schedule.label} draft`);
             }
+
+            const callbackRuns = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "process_telegram_callbacks.yml",
+              per_page: 20,
+            });
+            const callbackWorkerOnline = callbackRuns.data.workflow_runs.some((run) =>
+              ["queued", "in_progress"].includes(run.status)
+            );
+            if (!callbackWorkerOnline) {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: "process_telegram_callbacks.yml",
+                ref: context.payload.repository.default_branch,
+              });
+              core.warning("Recovered missing Telegram button worker");
+            }
