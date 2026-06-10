@@ -20,61 +20,6 @@ jobs:
         with:
           script: |
             const now = new Date();
-            const minuteOfDay = now.getUTCHours() * 60 + now.getUTCMinutes();
-            const today = now.toISOString().slice(0, 10);
-
-            const schedules = [
-              {
-                workflow: "morning_post.yml",
-                label: "morning",
-                cutoffMinutes: 7 * 60,
-                recoverFromMinutes: 7 * 60 + 30,
-                recoverUntilMinutes: 10 * 60,
-              },
-              {
-                workflow: "evening_post.yml",
-                label: "evening",
-                cutoffMinutes: 14 * 60,
-                recoverFromMinutes: 14 * 60 + 50,
-                recoverUntilMinutes: 18 * 60,
-              },
-            ];
-
-            for (const schedule of schedules) {
-              if (
-                minuteOfDay < schedule.recoverFromMinutes ||
-                minuteOfDay > schedule.recoverUntilMinutes
-              ) {
-                continue;
-              }
-
-              const cutoff = new Date(`${today}T00:00:00Z`);
-              cutoff.setUTCMinutes(schedule.cutoffMinutes);
-              const runs = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: schedule.workflow,
-                per_page: 30,
-              });
-              const deliveredOrRunning = runs.data.workflow_runs.some((run) => {
-                if (new Date(run.created_at) < cutoff) return false;
-                return ["queued", "in_progress"].includes(run.status) || run.conclusion === "success";
-              });
-
-              if (deliveredOrRunning) {
-                core.info(`${schedule.label} draft already delivered or running`);
-                continue;
-              }
-
-              await github.rest.actions.createWorkflowDispatch({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: schedule.workflow,
-                ref: context.payload.repository.default_branch,
-              });
-              core.warning(`Recovered missing ${schedule.label} draft`);
-            }
-
             const callbackRuns = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
