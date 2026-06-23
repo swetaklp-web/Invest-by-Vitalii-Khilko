@@ -1,0 +1,91 @@
+{
+  "description": "Manual editorial settings for ranking news candidates before Telegram review.",
+  "selection_goal": "Prioritize institutionally relevant US market stories with broad impact across equities, bonds, sectors, rates, commodities, FX, flows, options and earnings.",
+  "max_candidates": 8,
+  "source_weights": {
+    "Telegram": 18,
+    "X": 12,
+    "Yahoo Finance": 16,
+    "Barchart OnDemand": 8,
+    "Manual input": 20
+  },
+  "strength_weights": {
+    "high": 35,
+    "medium": 20,
+    "low": 6
+  },
+  "catalyst_weights": {
+    "macro": 30,
+    "event": 24,
+    "fundamental": 24,
+    "flows": 22,
+    "technical": 10,
+    "narrative": 12,
+    "rumor": -15
+  },
+  "market_impact_keywords": {
+    "rate": 18,
+    "fed": 18,
+    "inflation": 18,
+    "cpi": 18,
+    "ppi": 14,
+    "jobs": 14,
+    "treasury": 16,
+    "yield": 16,
+    "dollar": 12,
+    "oil": 14,
+    "gold": 10,
+    "earnings": 12,
+    "guidance": 14,
+    "merger": 12,
+    "acquisition": 12,
+    "insider": 14,
+    "options": 12,
+    "flows": 12,
+    "credit": 14,
+    "default": 14,
+    "banks": 12,
+    "energy": 12,
+    "healthcare": 10,
+    "defense": 10,
+    "consumer": 8,
+    "small cap": 10,
+    "russell": 10
+  },
+  "broad_market_tickers": [
+    "SPY",
+    "QQQ",
+    "IWM",
+    "DIA",
+    "TLT",
+    "HYG",
+    "LQD",
+    "XLF",
+    "XLV",
+    "XLE",
+    "XLI",
+    "XLY",
+    "XLP",
+    "XLU",
+    "XLRE",
+    "XLB",
+    "XLK",
+    "XLC"
+  ],
+  "overused_tickers": {
+    "NVDA": -22,
+    "AMD": -8,
+    "TSM": -6
+  },
+  "single_company_penalty": -6,
+  "broad_market_bonus": 18,
+  "multi_ticker_bonus": 10,
+  "min_score_for_auto_candidate": 18,
+  "editorial_rules": [
+    "Do not pick AI, semiconductors or NVDA unless the story is one of the strongest confirmed market drivers of the day.",
+    "Prefer stories that move more than one asset class, sector or major market narrative.",
+    "Prefer macro, rates, flows, earnings guidance, sector repricing, credit stress and large M&A over isolated ticker noise.",
+    "If a story is only a technical quote move, it needs unusual magnitude or sector relevance.",
+    "Rumors are allowed only when clearly marked and should rank below confirmed data."
+  ]
+}

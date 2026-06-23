@@ -7,6 +7,7 @@ from typing import Any
 from openai import OpenAI
 
 from app.config import ROOT_DIR, settings
+from app.design.visual_policy import load_visual_policy, select_visual_type
 
 
 def _image_prompt(post: dict[str, Any], variant_number: int) -> str:
@@ -14,24 +15,31 @@ def _image_prompt(post: dict[str, Any], variant_number: int) -> str:
     source_context = " ".join(
         str(source.get("summary", "")) for source in post.get("sources", [])[:3]
     )
-    styles = (
-        "editorial financial illustration with cinematic depth and a clear central metaphor",
-        "premium magazine collage with market infrastructure, companies and macro forces",
-        "clean isometric financial ecosystem illustration with distinct connected elements",
-        "photorealistic institutional trading desk scene blended with the news subject",
-        "bold modern data-art composition with an unmistakable visual narrative",
+    policy = load_visual_policy()
+    visual_type = select_visual_type(variant_number)
+    avoid = "; ".join(str(item) for item in policy.get("avoid", [])[:10])
+    hard_rules = " ".join(str(item) for item in policy.get("hard_rules", [])[:8])
+    composition_rule = (
+        "Use a noticeably different composition, camera angle, layout and visual metaphor "
+        f"for variant #{variant_number}. Do not solve the variation by changing only colors."
     )
-    style = styles[(max(variant_number, 1) - 1) % len(styles)]
     return (
-        f"Create a unique 16:9 cover image for a Russian-language investment Telegram post. "
+        "Create one professional editorial image for a Russian-language investment Telegram post. "
+        "It should feel native to a serious investment Telegram channel: evidence-first, market-aware, "
+        "closer to a polished market screenshot, product context, company/sector scene or analytical "
+        "visual essay than to a flat fintech card. "
         f"News topic: {post.get('image_title') or post.get('title')}. "
         f"Verified context: {source_context}. Related tickers: {tickers}. "
-        f"Visual direction: {style}. Premium fintech editorial quality, light balanced palette, "
-        f"high visual hierarchy, sophisticated and credible, meaningfully different from prior variants. "
-        f"Do not include any words, letters, numbers, captions, charts with labels, watermarks, "
-        f"or invented company logos. If a brand is relevant, communicate it through recognizable "
-        f"products or industry imagery without fabricating its logo."
+        f"Visual type: {visual_type['name']}. Direction: {visual_type['direction']}. "
+        "Premium editorial quality, realistic detail, credible financial atmosphere, clean hierarchy, "
+        "high production value, not generic, not simplistic, not a template. "
+        f"{composition_rule} "
+        f"Hard rules: {hard_rules} Avoid: {avoid}."
     )
+
+
+def _image_size(variant_number: int) -> str:
+    return select_visual_type(variant_number)["size"]
 
 
 def generate_ai_news_image(
@@ -44,7 +52,7 @@ def generate_ai_news_image(
     response = client.images.generate(
         model=settings.openai_image_model,
         prompt=_image_prompt(post, variant_number),
-        size="1536x1024",
+        size=_image_size(variant_number),
         quality="medium",
         n=1,
     )

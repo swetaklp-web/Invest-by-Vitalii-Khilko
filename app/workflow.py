@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from hashlib import sha256
+from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from app.ai.fact_check import verify_post_grounding
 from app.ai.quality_check import check_post
 from app.config import settings
 from app.design.render_image import render_market_card
+from app.editorial_policy import load_editorial_policy, score_signal
 from app.sources.barchart import fetch_barchart_signals
 from app.sources.freshness import filter_fresh_signals, today_moscow
 from app.sources.manual_inputs import load_manual_inputs
@@ -24,6 +26,23 @@ from app.storage.logs import write_log
 
 class FreshSourceDataUnavailable(RuntimeError):
     pass
+
+
+def create_news_image(post: dict, temporary_id: str, post_type: str) -> tuple[Path, str]:
+    try:
+        from app.design.generate_ai_image import generate_ai_news_image
+
+        return generate_ai_news_image(post, temporary_id), "ai_generated"
+    except Exception as error:
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "image_generation_warning",
+                "error": str(error),
+                "fallback": "html_market_card",
+            }
+        )
+        return render_market_card(post, temporary_id), "html_fallback"
 
 
 def select_alternative_signals(inputs: dict, previous_post: dict | None) -> dict:
@@ -186,11 +205,12 @@ def build_draft(
     )
     quality = check_post(post, allowed_source_urls, fact_check)
     temporary_id = uuid4().hex[:12]
-    image_path = render_market_card(post, temporary_id)
+    image_path, image_mode = create_news_image(post, temporary_id, post_type)
     draft = create_draft(post, quality, image_path)
     final_image_path = image_path.with_name(f"{draft['id']}.png")
     image_path.replace(final_image_path)
     draft["image_path"] = str(final_image_path)
+    draft["image_mode"] = image_mode
     from app.storage.drafts import save_draft
 
     save_draft(draft)
@@ -199,23 +219,20 @@ def build_draft(
 
 def discover_news_candidates(post_type: str, limit: int = 8) -> list[dict]:
     inputs = load_source_inputs_with_retries(post_type)
+    policy = load_editorial_policy()
     seen_urls: set[str] = set()
     seen_topics: set[tuple[str, ...]] = set()
     candidates: list[dict] = []
-    source_priority = {
-        "Telegram": 0,
-        "X": 1,
-        "Yahoo Finance": 2,
-        "Barchart": 3,
-    }
-    signals = sorted(
-        inputs.get("signals", []),
-        key=lambda item: (
-            source_priority.get(str(item.get("source", "")).split("/")[0], 9),
-            0 if item.get("strength") == "high" else 1 if item.get("strength") == "medium" else 2,
-        ),
-    )
+    min_score = int(policy.get("min_score_for_auto_candidate", 0))
+    scored_signals = []
+    for signal in inputs.get("signals", []):
+        signal = dict(signal)
+        signal["editorial_score"] = score_signal(signal, policy)
+        scored_signals.append(signal)
+    signals = sorted(scored_signals, key=lambda item: item["editorial_score"], reverse=True)
     for signal in signals:
+        if signal["editorial_score"] < min_score:
+            continue
         url = str(signal.get("url") or "")
         topic = tuple(sorted(str(ticker) for ticker in signal.get("tickers", []) if ticker))
         if not url or url in seen_urls or (topic and topic in seen_topics):
@@ -255,22 +272,7 @@ def build_draft_from_signal(
     )
     quality = check_post(post, allowed_source_urls, fact_check)
     temporary_id = uuid4().hex[:12]
-    try:
-        from app.design.generate_ai_image import generate_ai_news_image
-
-        image_path = generate_ai_news_image(post, temporary_id)
-        image_mode = "ai_generated"
-    except Exception as error:
-        image_path = render_market_card(post, temporary_id)
-        image_mode = "html_fallback"
-        write_log(
-            {
-                "post_type": post_type,
-                "status": "image_generation_warning",
-                "error": str(error),
-                "fallback": "html_market_card",
-            }
-        )
+    image_path, image_mode = create_news_image(post, temporary_id, post_type)
     draft = create_draft(post, quality, image_path)
     draft["image_mode"] = image_mode
     draft["selected_signal"] = signal

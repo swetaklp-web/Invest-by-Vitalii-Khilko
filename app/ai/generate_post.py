@@ -46,7 +46,7 @@ def generate_post(
             if post_type == "morning_brief"
             else "Главная тема дня на рынке"
         ),
-        "tickers": ["NVDA"],
+        "tickers": ["SPY", "XLF", "JPM"],
         "market_direction": "[Bullish] | [Bearish] | [Watch] | [Volatile]",
         "signal_strength": "high | medium | low",
         "horizon": "short | medium | long",
@@ -55,7 +55,7 @@ def generate_post(
         "telegram_text": "...",
         "image_title": "Одно короткое законченное предложение до 92 символов.",
         "image_subtitle": "",
-        "image_tickers": ["$NVDA"],
+        "image_tickers": ["$SPY", "$XLF", "$JPM"],
         "risk_flags": [],
     }
     user_payload = {
