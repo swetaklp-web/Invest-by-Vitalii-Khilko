@@ -1,6 +1,7 @@
 import pytest
 
 from app import workflow
+from app.storage import drafts as draft_storage
 
 
 def test_generate_grounded_post_retries_with_fact_check_feedback(monkeypatch) -> None:
@@ -52,3 +53,87 @@ def test_generate_grounded_post_stops_after_repeated_fact_check_failures(monkeyp
         workflow.generate_grounded_post({"signals": [{}], "market_snapshot": {}}, "evening_theme")
 
     assert error.value.fact_check["unsupported_claims"] == ["не подтверждено"]
+
+
+def test_source_anchored_fallback_builds_publishable_fact_checked_post(monkeypatch) -> None:
+    monkeypatch.setattr(workflow, "load_editorial_policy", lambda: {})
+    monkeypatch.setattr(workflow, "score_signal", lambda signal, _policy: 10)
+
+    post, fact_check = workflow.build_source_anchored_post(
+        {
+            "date": "2026-06-23",
+            "signals": [
+                {
+                    "source": "Yahoo Finance",
+                    "url": "https://finance.yahoo.com/news/test",
+                    "summary": "Reuters: Banks rise as yields move lower",
+                    "tickers": ["JPM", "XLF"],
+                    "impact": "[Watch]",
+                    "strength": "medium",
+                    "horizon": "short",
+                    "catalyst_type": "event",
+                    "date": "2026-06-23",
+                }
+            ],
+            "market_snapshot": {"quotes": []},
+        },
+        "evening_theme",
+        {"unsupported_claims": ["AI added unsupported detail"]},
+    )
+
+    assert post["telegram_text"].startswith("Banks rise as yields move lower")
+    assert "$JPM $XLF" in post["telegram_text"]
+    assert post["sources"] == [
+        {
+            "name": "Yahoo Finance",
+            "url": "https://finance.yahoo.com/news/test",
+            "summary": "Banks rise as yields move lower",
+        }
+    ]
+    assert fact_check["passed"] is True
+    assert fact_check["unsupported_claims"] == []
+
+
+def test_build_draft_uses_source_anchored_fallback_when_ai_fact_check_fails(monkeypatch, tmp_path) -> None:
+    inputs = {
+        "date": "2026-06-23",
+        "signals": [
+            {
+                "source": "Yahoo Finance",
+                "url": "https://finance.yahoo.com/news/test",
+                "summary": "Yahoo Finance: Energy shares move after oil update",
+                "tickers": ["XLE"],
+                "impact": "[Watch]",
+                "strength": "medium",
+                "horizon": "short",
+                "catalyst_type": "event",
+                "date": "2026-06-23",
+            }
+        ],
+        "market_snapshot": {"quotes": []},
+        "source_quality": {},
+    }
+    events = []
+    image_path = tmp_path / "image.png"
+    image_path.write_bytes(b"png")
+
+    monkeypatch.setattr(draft_storage, "DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr(workflow, "load_source_inputs", lambda _post_type: inputs)
+    monkeypatch.setattr(
+        workflow,
+        "generate_grounded_post",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            workflow.FactCheckFailed({"unsupported_claims": ["лишний вывод"]})
+        ),
+    )
+    monkeypatch.setattr(workflow, "write_log", events.append)
+    monkeypatch.setattr(workflow, "load_editorial_policy", lambda: {})
+    monkeypatch.setattr(workflow, "score_signal", lambda signal, _policy: 10)
+    monkeypatch.setattr(workflow, "create_news_image", lambda *_: (image_path, "test"))
+
+    draft = workflow.build_draft("evening_theme")
+
+    assert draft["quality"]["passed"] is True
+    assert draft["quality"]["fact_check"]["passed"] is True
+    assert "Energy shares move after oil update" in draft["post"]["telegram_text"]
+    assert any(event["status"] == "source_anchored_fallback" for event in events)

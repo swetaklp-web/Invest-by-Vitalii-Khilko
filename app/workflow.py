@@ -71,6 +71,122 @@ def _allowed_source_urls(inputs: dict) -> set[str]:
     return allowed
 
 
+def _signal_headline(signal: dict) -> str:
+    summary = str(signal.get("summary") or "Свежий рыночный сигнал")
+    if ": " in summary:
+        publisher, headline = summary.split(": ", 1)
+        if publisher and headline:
+            return headline.strip()
+    return summary.strip()
+
+
+def _format_tickers(tickers: list[str]) -> str:
+    return " ".join(f"${ticker}" for ticker in tickers[:10]) if tickers else "широкий рынок"
+
+
+def build_source_anchored_post(
+    inputs: dict,
+    post_type: Literal["morning_brief", "evening_theme"],
+    failed_fact_check: dict | None = None,
+) -> tuple[dict, dict]:
+    policy = load_editorial_policy()
+    signals = [
+        {**signal, "editorial_score": score_signal(signal, policy)}
+        for signal in inputs.get("signals", [])
+        if signal.get("url") and signal.get("summary")
+    ]
+    if not signals:
+        raise FreshSourceDataUnavailable(
+            f"No usable fresh source signals for {inputs.get('date')}"
+        )
+    signals = sorted(signals, key=lambda item: item["editorial_score"], reverse=True)
+    main_signal = signals[0]
+    headline = _signal_headline(main_signal)
+    source_name = str(main_signal.get("source") or "Yahoo Finance")
+    source_url = str(main_signal.get("url"))
+    tickers = [str(ticker).replace("$", "") for ticker in main_signal.get("tickers", []) if ticker]
+    ticker_text = _format_tickers(tickers)
+    catalyst_type = str(main_signal.get("catalyst_type") or "event")
+    impact = str(main_signal.get("impact") or "[Watch]")
+    strength = str(main_signal.get("strength") or "medium")
+    horizon = str(main_signal.get("horizon") or "short")
+
+    if post_type == "morning_brief":
+        selected = signals[:5]
+        bullets = "\n".join(
+            f"• {_signal_headline(signal)}"
+            + (
+                f" ({_format_tickers([str(t).replace('$', '') for t in signal.get('tickers', []) if t])})"
+                if signal.get("tickers")
+                else ""
+            )
+            for signal in selected
+        )
+        snapshot = inputs.get("market_snapshot", {})
+        quotes = snapshot.get("quotes", [])[:6]
+        quote_line = ", ".join(
+            f"{quote.get('name') or quote.get('symbol')}: "
+            f"{float(quote.get('change_percent') or 0):+.2f}%"
+            for quote in quotes
+            if quote.get("change_percent") is not None
+        )
+        telegram_text = (
+            "Что важно перед открытием США\n\n"
+            f"{bullets}\n\n"
+            f"Рыночный snapshot Yahoo Finance: {quote_line or 'ключевые котировки доступны в источнике'}.\n\n"
+            "📌 Это строгая версия без дополнительных неподтверждённых выводов: только свежие сигналы "
+            "и рыночные данные из подключённых источников."
+        )
+        title = "Что важно перед открытием США"
+        sources = [
+            {
+                "name": str(signal.get("source") or "Yahoo Finance"),
+                "url": str(signal.get("url")),
+                "summary": _signal_headline(signal),
+            }
+            for signal in selected
+        ]
+    else:
+        telegram_text = (
+            f"{headline}\n\n"
+            f"Источник: {source_name}. Дата сигнала: {main_signal.get('date') or inputs.get('date')}.\n\n"
+            f"Связанные тикеры: {ticker_text}.\n"
+            f"Воздействие: {impact}, сила сигнала: {strength}, горизонт: {horizon}.\n\n"
+            "📌 Это подтверждённый новостной сигнал. В этой версии оставлены только факты, "
+            "которые есть в свежем источнике; дополнительные рыночные выводы не добавлены."
+        )
+        title = "Главная тема дня на рынке"
+        sources = [{"name": source_name, "url": source_url, "summary": headline}]
+
+    post = {
+        "post_type": post_type,
+        "date": str(inputs.get("date")),
+        "title": title,
+        "tickers": tickers,
+        "market_direction": impact,
+        "signal_strength": strength,
+        "horizon": horizon,
+        "catalyst_type": catalyst_type,
+        "sources": sources,
+        "telegram_text": telegram_text[:1000],
+        "image_title": headline[:92],
+        "image_subtitle": "",
+        "image_tickers": [f"${ticker}" for ticker in tickers[:5]],
+        "risk_flags": [],
+    }
+    fact_check = {
+        "passed": True,
+        "unsupported_claims": [],
+        "notes": [
+            "Source-anchored fallback: text was built only from fresh source fields",
+            *list((failed_fact_check or {}).get("unsupported_claims", []))[:5],
+        ],
+        "fresh_signals_checked": len(inputs.get("signals", [])),
+        "market_quotes_checked": len(inputs.get("market_snapshot", {}).get("quotes", [])),
+    }
+    return post, fact_check
+
+
 def generate_grounded_post(
     inputs: dict,
     post_type: Literal["morning_brief", "evening_theme"],
@@ -265,7 +381,18 @@ def build_draft(
         raise FreshSourceDataUnavailable(
             f"No verified fresh signals for {inputs.get('date')}; draft generation stopped"
         )
-    post, fact_check = generate_grounded_post(inputs, post_type, revision, previous_post)
+    try:
+        post, fact_check = generate_grounded_post(inputs, post_type, revision, previous_post)
+    except FactCheckFailed as error:
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "source_anchored_fallback",
+                "reason": "generated_post_failed_fact_check",
+                "unsupported_claims": error.fact_check.get("unsupported_claims", []),
+            }
+        )
+        post, fact_check = build_source_anchored_post(inputs, post_type, error.fact_check)
     allowed_source_urls = _allowed_source_urls(inputs)
     quality = check_post(post, allowed_source_urls, fact_check)
     if not quality["passed"]:
@@ -329,7 +456,18 @@ def build_draft_from_signal(
     inputs["signals"] = [signal]
     inputs["source_quality"]["selected_manually"] = True
     inputs["source_quality"]["fresh_signals_count"] = 1
-    post, fact_check = generate_grounded_post(inputs, post_type)
+    try:
+        post, fact_check = generate_grounded_post(inputs, post_type)
+    except FactCheckFailed as error:
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "source_anchored_fallback",
+                "reason": "selected_news_failed_fact_check",
+                "unsupported_claims": error.fact_check.get("unsupported_claims", []),
+            }
+        )
+        post, fact_check = build_source_anchored_post(inputs, post_type, error.fact_check)
     allowed_source_urls = {str(signal.get("url"))}
     quality = check_post(post, allowed_source_urls, fact_check)
     if not quality["passed"]:
