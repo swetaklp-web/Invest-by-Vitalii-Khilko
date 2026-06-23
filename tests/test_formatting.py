@@ -1,4 +1,5 @@
 from app.telegram.formatting import (
+    PHOTO_CAPTION_LIMIT,
     SUBSCRIPTION_LABEL,
     SUBSCRIPTION_URL,
     ensure_subscription_link,
@@ -44,3 +45,11 @@ def test_ensure_subscription_link_appends_once():
 
     assert f'<a href="{SUBSCRIPTION_URL}">{SUBSCRIPTION_LABEL}</a>' in text
     assert ensure_subscription_link(text) == text
+
+
+def test_ensure_subscription_link_keeps_caption_within_telegram_limit():
+    text = ensure_subscription_link("<b>" + ("длинный текст " * 120) + "</b>")
+
+    assert len(text) <= PHOTO_CAPTION_LIMIT
+    assert f'<a href="{SUBSCRIPTION_URL}">{SUBSCRIPTION_LABEL}</a>' in text
+    assert text.endswith(f'<a href="{SUBSCRIPTION_URL}">{SUBSCRIPTION_LABEL}</a>')

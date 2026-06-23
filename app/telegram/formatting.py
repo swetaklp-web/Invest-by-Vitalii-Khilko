@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 ALLOWED_TAGS = ("<b>", "</b>", "<blockquote>", "</blockquote>")
 SUBSCRIPTION_URL = "https://t.me/Financebks"
 SUBSCRIPTION_LABEL = "🔋 Инвестиции | Технологии - подписаться"
+SUBSCRIPTION_HTML = f'<a href="{SUBSCRIPTION_URL}">{html.escape(SUBSCRIPTION_LABEL)}</a>'
+PHOTO_CAPTION_LIMIT = 1024
 
 
 def _safe_href(url: str) -> str:
@@ -51,11 +53,27 @@ def sanitize_telegram_html(text: str) -> str:
 
 
 def ensure_subscription_link(text: str) -> str:
+    suffix = f"\n\n{SUBSCRIPTION_HTML}"
     clean = text.rstrip()
-    if SUBSCRIPTION_URL in clean or SUBSCRIPTION_LABEL in clean:
-        return clean
-    return (
-        f'{clean}\n\n<a href="{SUBSCRIPTION_URL}">{html.escape(SUBSCRIPTION_LABEL)}</a>'
-        if clean
-        else f'<a href="{SUBSCRIPTION_URL}">{html.escape(SUBSCRIPTION_LABEL)}</a>'
-    )
+    clean = re.sub(
+        rf"\s*<a\s+href=[\"']{re.escape(SUBSCRIPTION_URL)}[\"']>"
+        rf"{re.escape(SUBSCRIPTION_LABEL)}</a>\s*$",
+        "",
+        clean,
+        flags=re.IGNORECASE,
+    ).rstrip()
+    body_limit = PHOTO_CAPTION_LIMIT - len(suffix)
+    if len(clean) > body_limit:
+        plain = re.sub(r"<\/?(?:b|blockquote)>|<a\s+href=[\"'][^\"']+[\"']>|</a>", "", clean)
+        plain = html.unescape(plain)
+        clean = html.escape(plain[: max(body_limit - 1, 0)].rstrip()) + "…"
+    result = f"{clean}{suffix}" if clean else SUBSCRIPTION_HTML
+    if len(result) <= PHOTO_CAPTION_LIMIT:
+        return result
+    # Last-resort guard for Telegram's hard caption limit.
+    if len(SUBSCRIPTION_HTML) >= PHOTO_CAPTION_LIMIT:
+        return SUBSCRIPTION_HTML[:PHOTO_CAPTION_LIMIT]
+    body_limit = PHOTO_CAPTION_LIMIT - len(suffix)
+    plain = html.unescape(re.sub(r"<[^>]+>", "", clean))
+    clean = html.escape(plain[: max(body_limit - 1, 0)].rstrip()) + "…"
+    return f"{clean}{suffix}" if clean else SUBSCRIPTION_HTML
