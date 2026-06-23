@@ -36,13 +36,6 @@ class FactCheckFailed(RuntimeError):
         super().__init__(message)
 
 
-class DraftQualityFailed(RuntimeError):
-    def __init__(self, quality: dict) -> None:
-        self.quality = quality
-        issues = "; ".join(quality.get("issues", []))
-        super().__init__(issues or "Draft did not pass quality checks")
-
-
 def create_news_image(post: dict, temporary_id: str, post_type: str) -> tuple[Path, str]:
     try:
         from app.design.generate_ai_image import generate_ai_news_image
@@ -395,8 +388,15 @@ def build_draft(
         post, fact_check = build_source_anchored_post(inputs, post_type, error.fact_check)
     allowed_source_urls = _allowed_source_urls(inputs)
     quality = check_post(post, allowed_source_urls, fact_check)
-    if not quality["passed"]:
-        raise DraftQualityFailed(quality)
+    if not quality.get("technical_passed", True):
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "technical_quality_warning",
+                "issues": quality.get("issues", []),
+                "blocking": False,
+            }
+        )
     temporary_id = uuid4().hex[:12]
     image_path, image_mode = create_news_image(post, temporary_id, post_type)
     draft = create_draft(post, quality, image_path)
@@ -470,8 +470,15 @@ def build_draft_from_signal(
         post, fact_check = build_source_anchored_post(inputs, post_type, error.fact_check)
     allowed_source_urls = {str(signal.get("url"))}
     quality = check_post(post, allowed_source_urls, fact_check)
-    if not quality["passed"]:
-        raise DraftQualityFailed(quality)
+    if not quality.get("technical_passed", True):
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "technical_quality_warning",
+                "issues": quality.get("issues", []),
+                "blocking": False,
+            }
+        )
     temporary_id = uuid4().hex[:12]
     image_path, image_mode = create_news_image(post, temporary_id, post_type)
     draft = create_draft(post, quality, image_path)

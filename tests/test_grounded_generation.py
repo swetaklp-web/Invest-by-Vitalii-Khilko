@@ -137,3 +137,52 @@ def test_build_draft_uses_source_anchored_fallback_when_ai_fact_check_fails(monk
     assert draft["quality"]["fact_check"]["passed"] is True
     assert "Energy shares move after oil update" in draft["post"]["telegram_text"]
     assert any(event["status"] == "source_anchored_fallback" for event in events)
+
+
+def test_build_draft_does_not_block_on_technical_quality_warnings(monkeypatch, tmp_path) -> None:
+    inputs = {
+        "date": "2026-06-23",
+        "signals": [
+            {
+                "source": "Yahoo Finance",
+                "url": "https://finance.yahoo.com/news/test",
+                "summary": "Yahoo Finance: Test source",
+                "tickers": ["XLF"],
+                "date": "2026-06-23",
+            }
+        ],
+        "market_snapshot": {"quotes": []},
+        "source_quality": {},
+    }
+    post = {
+        "post_type": "evening_theme",
+        "date": "2026-06-23",
+        "title": "Главная тема дня на рынке",
+        "telegram_text": "Технически длинный текст " + ("x" * 1100),
+        "tickers": ["XLF"],
+        "sources": [{"name": "Yahoo Finance", "url": "https://finance.yahoo.com/news/test"}],
+        "catalyst_type": "event",
+        "risk_flags": [],
+    }
+    fact_check = {
+        "passed": True,
+        "unsupported_claims": [],
+        "notes": [],
+        "fresh_signals_checked": 1,
+        "market_quotes_checked": 0,
+    }
+    events = []
+    image_path = tmp_path / "image.png"
+    image_path.write_bytes(b"png")
+
+    monkeypatch.setattr(draft_storage, "DRAFTS_DIR", tmp_path / "drafts")
+    monkeypatch.setattr(workflow, "load_source_inputs", lambda _post_type: inputs)
+    monkeypatch.setattr(workflow, "generate_grounded_post", lambda *_args, **_kwargs: (post, fact_check))
+    monkeypatch.setattr(workflow, "write_log", events.append)
+    monkeypatch.setattr(workflow, "create_news_image", lambda *_: (image_path, "test"))
+
+    draft = workflow.build_draft("evening_theme")
+
+    assert draft["quality"]["fact_check"]["passed"] is True
+    assert draft["quality"]["technical_passed"] is False
+    assert any(event["status"] == "technical_quality_warning" for event in events)

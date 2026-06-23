@@ -3,6 +3,7 @@ from app.telegram.bot import (
     image_review_keyboard,
     news_menu_keyboard,
     review_keyboard,
+    service_block,
 )
 
 
@@ -47,3 +48,27 @@ def test_news_card_can_be_accepted() -> None:
 
     assert button_labels(markup) == ["✅ Принять новость"]
     assert markup.inline_keyboard[0][0].callback_data == "accept_news:abc123:evening_theme"
+
+
+def test_service_block_marks_technical_issues_as_non_blocking() -> None:
+    text = service_block(
+        {
+            "id": "draft1",
+            "quality": {
+                "passed": False,
+                "technical_passed": False,
+                "issues": ["telegram_text exceeds 1000 characters"],
+                "risk_flags": [],
+                "fact_check": {
+                    "passed": True,
+                    "fresh_signals_checked": 3,
+                    "market_quotes_checked": 2,
+                    "unsupported_claims": [],
+                },
+            },
+        }
+    )
+
+    assert "Технические замечания: есть, не блокируют" in text
+    assert "Проверка фактов по свежим источникам: ПРОЙДЕНА" in text
+    assert "Техническая проверка: НЕ ПРОЙДЕНА" not in text

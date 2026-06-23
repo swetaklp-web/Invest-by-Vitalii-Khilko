@@ -162,11 +162,11 @@ def service_block(draft: dict) -> str:
         or "• нет"
     )
     fact_status = "ПРОЙДЕНА" if fact_check.get("passed") else "НЕ ПРОЙДЕНА"
+    technical_status = "нет" if quality.get("technical_passed", quality["passed"]) else "есть, не блокируют"
     return (
         f"\n\n———\nСлужебный блок\n"
         f"Draft ID: {draft['id']}\n"
-        f"Техническая проверка: "
-        f"{'ПРОЙДЕНА' if quality.get('technical_passed', quality['passed']) else 'НЕ ПРОЙДЕНА'}\n"
+        f"Технические замечания: {technical_status}\n"
         f"Проверка фактов по свежим источникам: {fact_status}\n"
         f"Проверено свежих сигналов: {fact_check.get('fresh_signals_checked', 0)}\n"
         f"Проверено рыночных показателей: {fact_check.get('market_quotes_checked', 0)}\n"
@@ -178,10 +178,7 @@ def service_block(draft: dict) -> str:
 
 async def send_review_draft(bot, draft: dict) -> None:
     draft["post"]["telegram_text"] = sanitize_telegram_html(draft["post"]["telegram_text"])
-    publish_allowed = bool(
-        draft["quality"]["passed"]
-        and draft["quality"].get("fact_check", {}).get("passed")
-    )
+    publish_allowed = bool(draft["quality"].get("fact_check", {}).get("passed"))
     with Path(draft["image_path"]).open("rb") as image:
         photo_message = await bot.send_photo(
             chat_id=settings.telegram_review_chat_id,
