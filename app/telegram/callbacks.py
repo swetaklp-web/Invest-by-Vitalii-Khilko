@@ -12,7 +12,7 @@ from telegram.ext import ContextTypes
 
 from app.config import settings
 from app.storage.logs import write_log
-from app.telegram.formatting import sanitize_telegram_html
+from app.telegram.formatting import ensure_subscription_link, sanitize_telegram_html
 
 
 async def answer_callback_safely(query: CallbackQuery, text: str, show_alert: bool = False) -> None:
@@ -215,7 +215,9 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
         from app.telegram.bot import image_review_keyboard
 
         plain_text = query.message.caption or ""
-        clean_caption = sanitize_telegram_html(query.message.caption_html or plain_text)
+        clean_caption = ensure_subscription_link(
+            sanitize_telegram_html(query.message.caption_html or plain_text)
+        )
         tickers = list(dict.fromkeys(re.findall(r"\$[A-Z]{1,6}", plain_text)))[:6]
         post = {
             "date": datetime.now(ZoneInfo("Europe/Moscow")).date().isoformat(),
@@ -278,7 +280,9 @@ async def handle_query(query: CallbackQuery, bot: Bot) -> None:
 
         main_message_id = int(photo_message_id)
         main_keyboard = review_keyboard(post_type, main_message_id, publish_allowed)
-        clean_caption = sanitize_telegram_html(query.message.caption_html or "")
+        clean_caption = ensure_subscription_link(
+            sanitize_telegram_html(query.message.caption_html or "")
+        )
         try:
             main_message = await bot.edit_message_media(
                 chat_id=settings.telegram_review_chat_id,

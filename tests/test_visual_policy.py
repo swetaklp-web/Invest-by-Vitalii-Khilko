@@ -28,6 +28,9 @@ def test_image_prompt_uses_editorial_visual_logic_not_flat_cards() -> None:
     assert "highly realistic" in prompt
     assert "cartoon people" in prompt
     assert "toy-like 3D characters" in prompt
+    assert "Required image text" in prompt
+    assert "include exactly one short clean thematic caption" in prompt
+    assert "cardboard flat poster" in prompt
 
 
 def test_image_variants_cycle_through_different_sizes_and_visual_types() -> None:

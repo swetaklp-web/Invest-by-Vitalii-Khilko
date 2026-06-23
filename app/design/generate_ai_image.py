@@ -10,6 +10,13 @@ from app.config import ROOT_DIR, settings
 from app.design.visual_policy import load_visual_policy, select_visual_type
 
 
+def _visual_caption(post: dict[str, Any]) -> str:
+    raw = str(post.get("image_title") or post.get("title") or "Market signal")
+    words = raw.replace("$", "").split()
+    caption = " ".join(words[:6]).strip(" .,:;—-")
+    return caption or "Market signal"
+
+
 def _image_prompt(post: dict[str, Any], variant_number: int) -> str:
     tickers = ", ".join(post.get("tickers", [])[:5]) or "US market"
     source_context = " ".join(
@@ -17,8 +24,9 @@ def _image_prompt(post: dict[str, Any], variant_number: int) -> str:
     )
     policy = load_visual_policy()
     visual_type = select_visual_type(variant_number)
-    avoid = "; ".join(str(item) for item in policy.get("avoid", [])[:10])
-    hard_rules = " ".join(str(item) for item in policy.get("hard_rules", [])[:8])
+    visual_caption = _visual_caption(post)
+    avoid = "; ".join(str(item) for item in policy.get("avoid", []))
+    hard_rules = " ".join(str(item) for item in policy.get("hard_rules", []))
     composition_rule = (
         "Use a noticeably different composition, camera angle, layout and visual metaphor "
         f"for variant #{variant_number}. Do not solve the variation by changing only colors."
@@ -32,11 +40,14 @@ def _image_prompt(post: dict[str, Any], variant_number: int) -> str:
         "visual essay than to a flat fintech card or a cartoon illustration. "
         f"News topic: {post.get('image_title') or post.get('title')}. "
         f"Verified context: {source_context}. Related tickers: {tickers}. "
+        f"Required image text: include exactly one short clean thematic caption on the image: '{visual_caption}'. "
+        "The caption must be readable, correctly spelled, and integrated into a realistic market screen, document, "
+        "terminal, wall display or product context. Do not add any other words. "
         f"Visual type: {visual_type['name']}. Direction: {visual_type['direction']}. "
         "Premium editorial quality, realistic detail, credible financial atmosphere, clean hierarchy, "
         "high production value, not generic, not simplistic, not a template. "
         "Taboo: cartoon people, cute mascots, toy-like 3D characters, egg-shaped smooth characters, "
-        "flat childish illustration style, pseudo-Pixar style. "
+        "flat childish illustration style, pseudo-Pixar style, cardboard flat poster, vector-only layout. "
         f"{composition_rule} "
         f"Hard rules: {hard_rules} Avoid: {avoid}."
     )
