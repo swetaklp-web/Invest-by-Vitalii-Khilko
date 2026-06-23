@@ -25,14 +25,18 @@ def _image_prompt(post: dict[str, Any], variant_number: int) -> str:
     )
     return (
         "Create one professional editorial image for a Russian-language investment Telegram post. "
+        "The image must be highly realistic by default: photorealistic, documentary, premium editorial, "
+        "with real-world lighting, physical materials, depth of field and credible financial context. "
         "It should feel native to a serious investment Telegram channel: evidence-first, market-aware, "
         "closer to a polished market screenshot, product context, company/sector scene or analytical "
-        "visual essay than to a flat fintech card. "
+        "visual essay than to a flat fintech card or a cartoon illustration. "
         f"News topic: {post.get('image_title') or post.get('title')}. "
         f"Verified context: {source_context}. Related tickers: {tickers}. "
         f"Visual type: {visual_type['name']}. Direction: {visual_type['direction']}. "
         "Premium editorial quality, realistic detail, credible financial atmosphere, clean hierarchy, "
         "high production value, not generic, not simplistic, not a template. "
+        "Taboo: cartoon people, cute mascots, toy-like 3D characters, egg-shaped smooth characters, "
+        "flat childish illustration style, pseudo-Pixar style. "
         f"{composition_rule} "
         f"Hard rules: {hard_rules} Avoid: {avoid}."
     )

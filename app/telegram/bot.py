@@ -9,7 +9,7 @@ from app.config import settings
 from app.storage.drafts import save_draft
 from app.storage.logs import write_log
 from app.telegram.callbacks import handle_callback
-from app.telegram.formatting import sanitize_telegram_html
+from app.telegram.formatting import ensure_subscription_link, sanitize_telegram_html
 
 
 def news_menu_keyboard() -> InlineKeyboardMarkup:
@@ -199,7 +199,9 @@ def service_block(draft: dict) -> str:
 
 
 async def send_review_draft(bot, draft: dict) -> None:
-    draft["post"]["telegram_text"] = sanitize_telegram_html(draft["post"]["telegram_text"])
+    draft["post"]["telegram_text"] = ensure_subscription_link(
+        sanitize_telegram_html(draft["post"]["telegram_text"])
+    )
     publish_allowed = bool(draft["quality"].get("fact_check", {}).get("passed"))
     with Path(draft["image_path"]).open("rb") as image:
         photo_message = await bot.send_photo(

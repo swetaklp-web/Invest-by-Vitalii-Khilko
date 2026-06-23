@@ -1,4 +1,9 @@
-from app.telegram.formatting import sanitize_telegram_html
+from app.telegram.formatting import (
+    SUBSCRIPTION_LABEL,
+    SUBSCRIPTION_URL,
+    ensure_subscription_link,
+    sanitize_telegram_html,
+)
 
 
 def test_sanitize_telegram_html_keeps_supported_tags_and_escapes_other_markup():
@@ -23,3 +28,19 @@ def test_sanitize_telegram_html_is_idempotent():
     twice = sanitize_telegram_html(once)
 
     assert twice == once
+
+
+def test_sanitize_telegram_html_keeps_safe_links():
+    text = '<a href="https://t.me/Financebks">Подписаться</a> <a href="javascript:bad">bad</a>'
+
+    assert sanitize_telegram_html(text) == (
+        '<a href="https://t.me/Financebks">Подписаться</a> '
+        '&lt;a href=&quot;javascript:bad&quot;&gt;bad&lt;/a&gt;'
+    )
+
+
+def test_ensure_subscription_link_appends_once():
+    text = ensure_subscription_link("Пост")
+
+    assert f'<a href="{SUBSCRIPTION_URL}">{SUBSCRIPTION_LABEL}</a>' in text
+    assert ensure_subscription_link(text) == text

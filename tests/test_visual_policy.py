@@ -25,6 +25,9 @@ def test_image_prompt_uses_editorial_visual_logic_not_flat_cards() -> None:
     assert "flat fintech card" in prompt
     assert "Do not solve the variation by changing only colors" in prompt
     assert "выдуманные логотипы компаний" in prompt
+    assert "highly realistic" in prompt
+    assert "cartoon people" in prompt
+    assert "toy-like 3D characters" in prompt
 
 
 def test_image_variants_cycle_through_different_sizes_and_visual_types() -> None:
