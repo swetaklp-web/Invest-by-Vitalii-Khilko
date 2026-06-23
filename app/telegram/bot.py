@@ -152,6 +152,26 @@ def image_review_keyboard(
     )
 
 
+def _service_source_links(draft: dict, limit: int = 8) -> str:
+    sources = draft.get("post", {}).get("sources") or []
+    links: list[str] = []
+    seen_urls: set[str] = set()
+    for index, source in enumerate(sources, start=1):
+        url = str(source.get("url") or "").strip()
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+        name = str(source.get("name") or f"Источник {index}").strip() or f"Источник {index}"
+        summary = str(source.get("summary") or "").strip()
+        label = name if not summary else f"{name}: {summary}"
+        if len(label) > 120:
+            label = label[:117].rstrip() + "..."
+        links.append(f"• <a href=\"{escape(url)}\">{escape(label)}</a>")
+        if len(links) >= limit:
+            break
+    return "\n".join(links) or "• нет"
+
+
 def service_block(draft: dict) -> str:
     quality = draft["quality"]
     issues = "\n".join(f"• {item}" for item in quality["issues"]) or "• нет"
@@ -163,11 +183,13 @@ def service_block(draft: dict) -> str:
     )
     fact_status = "ПРОЙДЕНА" if fact_check.get("passed") else "НЕ ПРОЙДЕНА"
     technical_status = "нет" if quality.get("technical_passed", quality["passed"]) else "есть, не блокируют"
+    source_links = _service_source_links(draft)
     return (
         f"\n\n———\nСлужебный блок\n"
         f"Draft ID: {draft['id']}\n"
         f"Технические замечания: {technical_status}\n"
         f"Проверка фактов по свежим источникам: {fact_status}\n"
+        f"Источники фактов:\n{source_links}\n"
         f"Проверено свежих сигналов: {fact_check.get('fresh_signals_checked', 0)}\n"
         f"Проверено рыночных показателей: {fact_check.get('market_quotes_checked', 0)}\n"
         f"Технические проблемы:\n{issues}\n"

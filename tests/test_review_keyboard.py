@@ -54,6 +54,15 @@ def test_service_block_marks_technical_issues_as_non_blocking() -> None:
     text = service_block(
         {
             "id": "draft1",
+            "post": {
+                "sources": [
+                    {
+                        "name": "Yahoo Finance",
+                        "url": "https://finance.yahoo.com/news/test",
+                        "summary": "Banks move after Fed update",
+                    }
+                ]
+            },
             "quality": {
                 "passed": False,
                 "technical_passed": False,
@@ -71,4 +80,43 @@ def test_service_block_marks_technical_issues_as_non_blocking() -> None:
 
     assert "Технические замечания: есть, не блокируют" in text
     assert "Проверка фактов по свежим источникам: ПРОЙДЕНА" in text
+    assert "Источники фактов:" in text
+    assert '<a href="https://finance.yahoo.com/news/test">Yahoo Finance: Banks move after Fed update</a>' in text
     assert "Техническая проверка: НЕ ПРОЙДЕНА" not in text
+
+
+def test_service_block_deduplicates_and_escapes_source_links() -> None:
+    text = service_block(
+        {
+            "id": "draft2",
+            "post": {
+                "sources": [
+                    {
+                        "name": "Yahoo <Finance>",
+                        "url": "https://finance.yahoo.com/news/test?a=1&b=2",
+                        "summary": "A < B & C",
+                    },
+                    {
+                        "name": "Duplicate",
+                        "url": "https://finance.yahoo.com/news/test?a=1&b=2",
+                        "summary": "duplicate",
+                    },
+                ]
+            },
+            "quality": {
+                "passed": True,
+                "technical_passed": True,
+                "issues": [],
+                "risk_flags": [],
+                "fact_check": {
+                    "passed": True,
+                    "fresh_signals_checked": 1,
+                    "market_quotes_checked": 0,
+                    "unsupported_claims": [],
+                },
+            },
+        }
+    )
+
+    assert text.count("https://finance.yahoo.com/news/test") == 1
+    assert "Yahoo &lt;Finance&gt;: A &lt; B &amp; C" in text
