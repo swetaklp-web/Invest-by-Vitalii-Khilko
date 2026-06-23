@@ -28,6 +28,21 @@ class FreshSourceDataUnavailable(RuntimeError):
     pass
 
 
+class FactCheckFailed(RuntimeError):
+    def __init__(self, fact_check: dict) -> None:
+        self.fact_check = fact_check
+        unsupported = "; ".join(fact_check.get("unsupported_claims", []))
+        message = unsupported or "Post did not pass fresh-source fact-check"
+        super().__init__(message)
+
+
+class DraftQualityFailed(RuntimeError):
+    def __init__(self, quality: dict) -> None:
+        self.quality = quality
+        issues = "; ".join(quality.get("issues", []))
+        super().__init__(issues or "Draft did not pass quality checks")
+
+
 def create_news_image(post: dict, temporary_id: str, post_type: str) -> tuple[Path, str]:
     try:
         from app.design.generate_ai_image import generate_ai_news_image
@@ -43,6 +58,66 @@ def create_news_image(post: dict, temporary_id: str, post_type: str) -> tuple[Pa
             }
         )
         return render_market_card(post, temporary_id), "html_fallback"
+
+
+def _allowed_source_urls(inputs: dict) -> set[str]:
+    allowed = {
+        str(signal.get("url"))
+        for signal in inputs.get("signals", [])
+        if signal.get("url")
+    }
+    if inputs.get("market_snapshot", {}).get("quotes"):
+        allowed.add("https://finance.yahoo.com/")
+    return allowed
+
+
+def generate_grounded_post(
+    inputs: dict,
+    post_type: Literal["morning_brief", "evening_theme"],
+    revision: Literal["shorter", "deeper", "different_news"] | None = None,
+    previous_post: dict | None = None,
+    attempts: int = 3,
+) -> tuple[dict, dict]:
+    grounding_feedback: dict | None = None
+    last_fact_check: dict = {
+        "passed": False,
+        "unsupported_claims": [],
+        "notes": ["Fact-check was not completed"],
+    }
+    for attempt in range(1, attempts + 1):
+        post = generate_post(
+            inputs,
+            post_type,
+            revision,
+            previous_post,
+            grounding_feedback=grounding_feedback,
+        )
+        fact_check = verify_post_grounding(post, inputs)
+        fact_check["fresh_signals_checked"] = len(inputs.get("signals", []))
+        fact_check["market_quotes_checked"] = len(
+            inputs.get("market_snapshot", {}).get("quotes", [])
+        )
+        last_fact_check = fact_check
+        if fact_check.get("passed"):
+            return post, fact_check
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "fact_check_retry",
+                "attempt": attempt,
+                "unsupported_claims": fact_check.get("unsupported_claims", []),
+            }
+        )
+        grounding_feedback = {
+            "attempt": attempt,
+            "unsupported_claims": fact_check.get("unsupported_claims", []),
+            "notes": fact_check.get("notes", []),
+            "instruction": (
+                "Remove unsupported claims and use only facts explicitly present "
+                "in the provided fresh source evidence."
+            ),
+        }
+    raise FactCheckFailed(last_fact_check)
 
 
 def select_alternative_signals(inputs: dict, previous_post: dict | None) -> dict:
@@ -190,20 +265,11 @@ def build_draft(
         raise FreshSourceDataUnavailable(
             f"No verified fresh signals for {inputs.get('date')}; draft generation stopped"
         )
-    post = generate_post(inputs, post_type, revision, previous_post)
-    allowed_source_urls = {
-        str(signal.get("url"))
-        for signal in inputs.get("signals", [])
-        if signal.get("url")
-    }
-    if inputs.get("market_snapshot", {}).get("quotes"):
-        allowed_source_urls.add("https://finance.yahoo.com/")
-    fact_check = verify_post_grounding(post, inputs)
-    fact_check["fresh_signals_checked"] = len(inputs.get("signals", []))
-    fact_check["market_quotes_checked"] = len(
-        inputs.get("market_snapshot", {}).get("quotes", [])
-    )
+    post, fact_check = generate_grounded_post(inputs, post_type, revision, previous_post)
+    allowed_source_urls = _allowed_source_urls(inputs)
     quality = check_post(post, allowed_source_urls, fact_check)
+    if not quality["passed"]:
+        raise DraftQualityFailed(quality)
     temporary_id = uuid4().hex[:12]
     image_path, image_mode = create_news_image(post, temporary_id, post_type)
     draft = create_draft(post, quality, image_path)
@@ -263,14 +329,11 @@ def build_draft_from_signal(
     inputs["signals"] = [signal]
     inputs["source_quality"]["selected_manually"] = True
     inputs["source_quality"]["fresh_signals_count"] = 1
-    post = generate_post(inputs, post_type)
+    post, fact_check = generate_grounded_post(inputs, post_type)
     allowed_source_urls = {str(signal.get("url"))}
-    fact_check = verify_post_grounding(post, inputs)
-    fact_check["fresh_signals_checked"] = 1
-    fact_check["market_quotes_checked"] = len(
-        inputs.get("market_snapshot", {}).get("quotes", [])
-    )
     quality = check_post(post, allowed_source_urls, fact_check)
+    if not quality["passed"]:
+        raise DraftQualityFailed(quality)
     temporary_id = uuid4().hex[:12]
     image_path, image_mode = create_news_image(post, temporary_id, post_type)
     draft = create_draft(post, quality, image_path)

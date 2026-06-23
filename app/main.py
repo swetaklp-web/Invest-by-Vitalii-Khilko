@@ -7,7 +7,7 @@ from app.config import settings
 from app.storage.logs import write_log
 from app.telegram.bot import news_menu_keyboard, run_bot, send_review_draft
 from app.telegram.callbacks import process_callbacks_once
-from app.workflow import FreshSourceDataUnavailable, build_draft
+from app.workflow import DraftQualityFailed, FactCheckFailed, FreshSourceDataUnavailable, build_draft
 from app.sources.barchart import fetch_barchart_signals
 from app.sources.freshness import filter_fresh_signals, today_moscow
 from app.sources.oninvest import fetch_oninvest_signals
@@ -31,6 +31,48 @@ async def generate_and_send(post_type: str) -> None:
                     "⚠️ Черновик не создан: на текущую дату не найдено достаточно "
                     "свежих подтверждённых сигналов из разрешённых источников. "
                     "Система остановила генерацию, чтобы не публиковать недостоверную новость."
+                ),
+            )
+    except FactCheckFailed as error:
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "fact_check_failed",
+                "error": str(error),
+                "unsupported_claims": error.fact_check.get("unsupported_claims", []),
+            }
+        )
+        unsupported = "\n".join(
+            f"• {item}" for item in error.fact_check.get("unsupported_claims", [])[:8]
+        ) or "• факт-чек не вернул конкретный список"
+        async with Bot(settings.telegram_bot_token) as bot:
+            await bot.send_message(
+                chat_id=settings.telegram_review_chat_id,
+                text=(
+                    "⚠️ Черновик не отправлен: проверка фактов по свежим источникам "
+                    "не прошла после нескольких попыток.\n\n"
+                    f"Неподтверждённые утверждения:\n{unsupported}\n\n"
+                    "Система остановила публикационный черновик, чтобы не отправлять "
+                    "в согласование недостоверный материал."
+                ),
+            )
+    except DraftQualityFailed as error:
+        write_log(
+            {
+                "post_type": post_type,
+                "status": "quality_failed",
+                "error": str(error),
+                "issues": error.quality.get("issues", []),
+            }
+        )
+        issues = "\n".join(f"• {item}" for item in error.quality.get("issues", [])[:8]) or "• нет"
+        async with Bot(settings.telegram_bot_token) as bot:
+            await bot.send_message(
+                chat_id=settings.telegram_review_chat_id,
+                text=(
+                    "⚠️ Черновик не отправлен: техническая проверка качества не прошла.\n\n"
+                    f"Проблемы:\n{issues}\n\n"
+                    "Нужно сгенерировать новый вариант по более строгим входным данным."
                 ),
             )
     except Exception as error:

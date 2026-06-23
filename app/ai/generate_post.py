@@ -24,6 +24,7 @@ def generate_post(
     post_type: Literal["morning_brief", "evening_theme"],
     revision: Literal["shorter", "deeper", "different_news"] | None = None,
     previous_post: dict[str, Any] | None = None,
+    grounding_feedback: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     settings.require("openai_api_key")
     client = OpenAI(api_key=settings.openai_api_key)
@@ -64,6 +65,7 @@ def generate_post(
         "required_json_shape": schema,
         "input_signals": inputs,
         "previous_post": previous_post,
+        "grounding_feedback": grounding_feedback,
     }
     response = client.chat.completions.create(
         model=settings.openai_model,
@@ -98,6 +100,14 @@ def generate_post(
                             "сильный подтверждённый новостной катализатор не найден. Все sources должны "
                             "быть взяты только из входных сигналов. Для market_snapshot используй URL "
                             "https://finance.yahoo.com/ и название Yahoo Finance."
+                        ),
+                        (
+                            "КРИТИЧЕСКОЕ ПРАВИЛО ФАКТ-ЧЕКА: если grounding_feedback содержит "
+                            "unsupported_claims, перепиши пост так, чтобы полностью убрать или смягчить "
+                            "эти утверждения. Не добавляй новые факты вместо удалённых. Каждый факт, "
+                            "цифра, дата, источник, причинно-следственная связь и тикер в telegram_text "
+                            "должны напрямую подтверждаться input_signals или market_snapshot. "
+                            "Аналитический вывод формулируй только как осторожное следствие из evidence."
                         ),
                         (
                             "morning_brief обязан содержать: 3–5 драйверов, макро-блок "
