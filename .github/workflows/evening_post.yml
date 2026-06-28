@@ -2,6 +2,9 @@ name: Evening market draft
 
 on:
   workflow_dispatch:
+  schedule:
+    # 14:30 UTC = 17:30 MSK. GitHub cron is UTC.
+    - cron: "30 14 * * *"
 
 permissions:
   actions: read

@@ -1,6 +1,7 @@
 import pytest
 
 from app import workflow
+from app.sources.freshness import today_moscow
 from app.storage import drafts as draft_storage
 
 
@@ -58,10 +59,11 @@ def test_generate_grounded_post_stops_after_repeated_fact_check_failures(monkeyp
 def test_source_anchored_fallback_builds_publishable_fact_checked_post(monkeypatch) -> None:
     monkeypatch.setattr(workflow, "load_editorial_policy", lambda: {})
     monkeypatch.setattr(workflow, "score_signal", lambda signal, _policy: 10)
+    today = today_moscow()
 
     post, fact_check = workflow.build_source_anchored_post(
         {
-            "date": "2026-06-23",
+            "date": today,
             "signals": [
                 {
                     "source": "Yahoo Finance",
@@ -72,7 +74,7 @@ def test_source_anchored_fallback_builds_publishable_fact_checked_post(monkeypat
                     "strength": "medium",
                     "horizon": "short",
                     "catalyst_type": "event",
-                    "date": "2026-06-23",
+                    "date": today,
                 }
             ],
             "market_snapshot": {"quotes": []},
@@ -95,8 +97,9 @@ def test_source_anchored_fallback_builds_publishable_fact_checked_post(monkeypat
 
 
 def test_build_draft_uses_source_anchored_fallback_when_ai_fact_check_fails(monkeypatch, tmp_path) -> None:
+    today = today_moscow()
     inputs = {
-        "date": "2026-06-23",
+        "date": today,
         "signals": [
             {
                 "source": "Yahoo Finance",
@@ -107,7 +110,7 @@ def test_build_draft_uses_source_anchored_fallback_when_ai_fact_check_fails(monk
                 "strength": "medium",
                 "horizon": "short",
                 "catalyst_type": "event",
-                "date": "2026-06-23",
+                "date": today,
             }
         ],
         "market_snapshot": {"quotes": []},
@@ -140,15 +143,16 @@ def test_build_draft_uses_source_anchored_fallback_when_ai_fact_check_fails(monk
 
 
 def test_build_draft_does_not_block_on_technical_quality_warnings(monkeypatch, tmp_path) -> None:
+    today = today_moscow()
     inputs = {
-        "date": "2026-06-23",
+        "date": today,
         "signals": [
             {
                 "source": "Yahoo Finance",
                 "url": "https://finance.yahoo.com/news/test",
                 "summary": "Yahoo Finance: Test source",
                 "tickers": ["XLF"],
-                "date": "2026-06-23",
+                "date": today,
             }
         ],
         "market_snapshot": {"quotes": []},
@@ -156,7 +160,7 @@ def test_build_draft_does_not_block_on_technical_quality_warnings(monkeypatch, t
     }
     post = {
         "post_type": "evening_theme",
-        "date": "2026-06-23",
+        "date": today,
         "title": "Главная тема дня на рынке",
         "telegram_text": "Технически длинный текст " + ("x" * 1100),
         "tickers": ["XLF"],

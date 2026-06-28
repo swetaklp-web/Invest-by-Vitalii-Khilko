@@ -20,9 +20,23 @@ jobs:
         with:
           script: |
             const now = new Date();
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const ref = context.payload.repository.default_branch;
+
+            async function workflowRuns(workflow_id, per_page = 30) {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner,
+                repo,
+                workflow_id,
+                per_page,
+              });
+              return runs.data.workflow_runs;
+            }
+
             const callbackRuns = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner,
+              repo,
               workflow_id: "process_telegram_callbacks.yml",
               per_page: 20,
             });
@@ -31,10 +45,76 @@ jobs:
             );
             if (!callbackWorkerOnline) {
               await github.rest.actions.createWorkflowDispatch({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+                owner,
+                repo,
                 workflow_id: "process_telegram_callbacks.yml",
-                ref: context.payload.repository.default_branch,
+                ref,
               });
               core.warning("Recovered missing Telegram button worker");
             }
+
+            function todayAtUtc(hour, minute) {
+              return new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+                hour,
+                minute,
+                0,
+                0,
+              ));
+            }
+
+            async function recoverDraftWorkflow({ workflow_id, name, hour, minute }) {
+              const scheduledAt = todayAtUtc(hour, minute);
+              const recoveryStartsAt = new Date(scheduledAt.getTime() + 10 * 60 * 1000);
+              if (now < recoveryStartsAt) {
+                core.info(`${name}: not due yet`);
+                return;
+              }
+
+              const runs = await workflowRuns(workflow_id, 50);
+              const runsSinceSchedule = runs.filter((run) =>
+                new Date(run.created_at) >= scheduledAt
+              );
+              const alreadyHealthy = runsSinceSchedule.some((run) =>
+                ["queued", "in_progress"].includes(run.status) || run.conclusion === "success"
+              );
+              if (alreadyHealthy) {
+                core.info(`${name}: already queued, running, or completed successfully today`);
+                return;
+              }
+
+              const retryCooldownStartsAt = new Date(now.getTime() - 60 * 60 * 1000);
+              const recentAttempt = runsSinceSchedule.some((run) =>
+                new Date(run.created_at) >= retryCooldownStartsAt
+              );
+              if (recentAttempt) {
+                core.warning(`${name}: recent failed attempt exists; waiting before retry`);
+                return;
+              }
+
+              await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id,
+                ref,
+              });
+              core.warning(`${name}: dispatched missing scheduled draft`);
+            }
+
+            await recoverDraftWorkflow({
+              workflow_id: "morning_post.yml",
+              name: "Morning market draft",
+              // 07:10 UTC = 10:10 MSK.
+              hour: 7,
+              minute: 10,
+            });
+
+            await recoverDraftWorkflow({
+              workflow_id: "evening_post.yml",
+              name: "Evening market draft",
+              // 14:30 UTC = 17:30 MSK.
+              hour: 14,
+              minute: 30,
+            });
